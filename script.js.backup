@@ -1,0 +1,3382 @@
+document.addEventListener('DOMContentLoaded', () => {
+    const gridContainer = document.getElementById('grid-container');
+    const gridBg = document.querySelector('.grid-bg');
+    const addNodeBtn = document.getElementById('add-node');
+    const addBranchBtn = document.getElementById('add-branch');
+    const clearBtn = document.getElementById('clear');
+    const nodeColorInput = document.getElementById('node-color');
+    const sidebarIcons = document.querySelectorAll('.sidebar-icon');
+    
+    // 创建日志区域
+    createLogPanel();
+    
+    // 创建日志面板函数
+    function createLogPanel() {
+        // 创建日志面板容器
+        const logPanelContainer = document.createElement('div');
+        logPanelContainer.id = 'log-panel-container';
+        logPanelContainer.style.position = 'fixed';
+        logPanelContainer.style.right = '20px';
+        logPanelContainer.style.top = '80px';
+        logPanelContainer.style.width = '350px';
+        logPanelContainer.style.height = 'calc(100vh - 100px)';
+        logPanelContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+        logPanelContainer.style.border = '1px solid #444';
+        logPanelContainer.style.borderRadius = '8px';
+        logPanelContainer.style.zIndex = '1000';
+        logPanelContainer.style.display = 'flex';
+        logPanelContainer.style.flexDirection = 'column';
+        
+        // 创建日志面板标题
+        const logPanelHeader = document.createElement('div');
+        logPanelHeader.id = 'log-panel-header';
+        logPanelHeader.style.display = 'flex';
+        logPanelHeader.style.justifyContent = 'space-between';
+        logPanelHeader.style.alignItems = 'center';
+        logPanelHeader.style.padding = '10px';
+        logPanelHeader.style.borderBottom = '1px solid #444';
+        logPanelHeader.style.color = '#fff';
+        logPanelHeader.style.fontSize = '16px';
+        logPanelHeader.style.fontWeight = 'bold';
+        logPanelHeader.textContent = '电路日志';
+        
+        // 创建日志操作按钮容器
+        const logPanelActions = document.createElement('div');
+        
+        // 创建清除日志按钮
+        const clearLogBtn = document.createElement('button');
+        clearLogBtn.textContent = '清除日志';
+        clearLogBtn.style.padding = '5px 10px';
+        clearLogBtn.style.backgroundColor = '#555';
+        clearLogBtn.style.color = '#fff';
+        clearLogBtn.style.border = 'none';
+        clearLogBtn.style.borderRadius = '4px';
+        clearLogBtn.style.cursor = 'pointer';
+        clearLogBtn.onclick = function() {
+            const logPanel = document.getElementById('log-panel-content');
+            if (logPanel) {
+                logPanel.innerHTML = '';
+            }
+        };
+        
+        // 创建显示/隐藏按钮
+        const toggleLogBtn = document.createElement('button');
+        toggleLogBtn.textContent = '隐藏';
+        toggleLogBtn.style.padding = '5px 10px';
+        toggleLogBtn.style.backgroundColor = '#555';
+        toggleLogBtn.style.color = '#fff';
+        toggleLogBtn.style.border = 'none';
+        toggleLogBtn.style.borderRadius = '4px';
+        toggleLogBtn.style.marginLeft = '5px';
+        toggleLogBtn.style.cursor = 'pointer';
+        toggleLogBtn.onclick = function() {
+            const logPanel = document.getElementById('log-panel-content');
+            if (logPanel.style.display === 'none') {
+                logPanel.style.display = 'block';
+                toggleLogBtn.textContent = '隐藏';
+                logPanelContainer.style.height = 'calc(100vh - 100px)';
+            } else {
+                logPanel.style.display = 'none';
+                toggleLogBtn.textContent = '显示';
+                logPanelContainer.style.height = 'auto';
+            }
+        };
+        
+        // 将按钮添加到操作容器
+        logPanelActions.appendChild(clearLogBtn);
+        logPanelActions.appendChild(toggleLogBtn);
+        
+        // 将标题和操作添加到标题栏
+        logPanelHeader.appendChild(logPanelActions);
+        
+        // 创建日志内容区域
+        const logPanelContent = document.createElement('div');
+        logPanelContent.id = 'log-panel-content';
+        logPanelContent.style.flex = '1';
+        logPanelContent.style.padding = '10px';
+        logPanelContent.style.overflowY = 'auto';
+        logPanelContent.style.color = '#ddd';
+        logPanelContent.style.fontSize = '14px';
+        logPanelContent.style.fontFamily = 'monospace';
+        
+        // 组合面板
+        logPanelContainer.appendChild(logPanelHeader);
+        logPanelContainer.appendChild(logPanelContent);
+        
+        // 添加到文档
+        document.body.appendChild(logPanelContainer);
+        
+        // 替换console.log函数，同时输出到控制台和日志面板
+        const originalConsoleLog = console.log;
+        console.log = function() {
+            // 调用原始的console.log
+            originalConsoleLog.apply(console, arguments);
+            
+            // 将日志添加到面板
+            const logPanel = document.getElementById('log-panel-content');
+            if (logPanel) {
+                // 创建一个新的日志条目
+                const logEntry = document.createElement('div');
+                logEntry.style.marginBottom = '5px';
+                logEntry.style.borderBottom = '1px solid #333';
+                logEntry.style.paddingBottom = '5px';
+                
+                // 获取当前时间
+                const now = new Date();
+                const timeStr = now.getHours().toString().padStart(2, '0') + ':' +
+                                now.getMinutes().toString().padStart(2, '0') + ':' +
+                                now.getSeconds().toString().padStart(2, '0') + '.' +
+                                now.getMilliseconds().toString().padStart(3, '0');
+                
+                // 添加时间戳
+                const timestamp = document.createElement('span');
+                timestamp.style.color = '#888';
+                timestamp.style.marginRight = '5px';
+                timestamp.textContent = `[${timeStr}]`;
+                logEntry.appendChild(timestamp);
+                
+                // 添加日志内容
+                const content = document.createElement('span');
+                // 将参数合并成一个字符串
+                const message = Array.from(arguments).map(arg => {
+                    return (typeof arg === 'object') ? JSON.stringify(arg) : String(arg);
+                }).join(' ');
+                
+                // 根据日志内容添加颜色
+                if (message.includes('错误') || message.includes('失败') || message.includes('取消')) {
+                    content.style.color = '#ff6b6b'; // 红色
+                } else if (message.includes('成功') || message.includes('传递信号 1')) {
+                    content.style.color = '#69db7c'; // 绿色
+                } else if (message.includes('连接') || message.includes('标记储存装置')) {
+                    content.style.color = '#4dabf7'; // 蓝色
+                } else if (message.includes('开关触发器')) {
+                    content.style.color = '#ffd43b'; // 黄色
+                } else if (message.includes('与门')) {
+                    content.style.color = '#ae3ec9'; // 紫色
+                }
+                
+                content.textContent = message;
+                logEntry.appendChild(content);
+                
+                // 添加到日志面板
+                logPanel.appendChild(logEntry);
+                
+                // 滚动到底部
+                logPanel.scrollTop = logPanel.scrollHeight;
+            }
+        };
+    }
+    
+    // 添加调试信息记录函数
+    function logCircuitState() {
+        console.log('========= 电路状态信息 =========');
+        
+        // 记录节点信息
+        nodes.forEach((node, index) => {
+            if (!node.dataset.componentType) return;
+            
+            const type = node.dataset.componentType;
+            const inputs = node.state ? node.state.inputValues : [];
+            const outputs = node.state ? node.state.outputValues : [];
+            const isActive = node.classList.contains('active');
+            
+            console.log(`节点${index} [${type}]: 激活=${isActive}, 输入=[${inputs.join(',')}], 输出=[${outputs.join(',')}]`);
+        });
+        
+        // 记录连接信息
+        connections.forEach((conn, index) => {
+            if (!conn.startNode || !conn.endNode) return;
+            
+            const startType = conn.startNode.dataset.componentType || '未知';
+            const endType = conn.endNode.dataset.componentType || '未知';
+            const inputIndex = conn.inputIndex;
+            
+            console.log(`连接${index}: [${startType}] -> [${endType}], 输入端口=${inputIndex}`);
+        });
+        
+        console.log('========= 电路状态结束 =========');
+    }
+    
+    // 在关键节点处调用状态记录
+
+    let nodes = [];
+    let branches = [];
+    let isDragging = false;
+    let isPanning = false;
+    let currentNode = null;
+    let nodeMode = false;
+    let branchMode = false;
+    let branchStart = null;
+    let branchStartPort = null;  // 连线起始端口
+    let currentColor = nodeColorInput.value;
+    let panStart = { x: 0, y: 0 };
+    let panOffset = { x: 0, y: 0 };
+    // 将panOffset暴露为全局变量，供connection.js访问
+    window.panOffset = panOffset;
+    let lastPan = { x: 0, y: 0 };
+    const gridSize = 48; // 与CSS变量保持一致
+    let dragIconType = null;
+    let dragIconSrc = null;
+    let circuitRunning = false;  // 电路运行状态
+    
+    // 添加节点选择和删除功能
+    let hoveredNode = null;  // 跟踪当前鼠标悬停的节点
+    let selectedNode = null; // 跟踪当前选中的节点
+    
+    // 添加全局变量用于跟踪连接状态
+    let connectingStart = null; // 连接起始节点
+    let connections = []; // 存储连接线
+    
+    // 组件逻辑定义
+    const componentLogic = {
+        '开关触发器': {
+            inputs: 1,  // 只允许1个输入
+            outputs: 1, // 只允许1个输出
+            process: function(inputs, node) {
+                // 只判断有实际输入的端口（即非undefined）
+                const validInputs = inputs.filter(v => v !== undefined);
+                
+                // 检查是否有输入信号且为0，如果是，则强制开关为关闭状态
+                if (validInputs.length > 0 && validInputs[0] === 0) {
+                    // 如果开关当前是打开状态，需要强制关闭它
+                    if (node && node.classList.contains('active')) {
+                        console.log(`开关触发器接收到输入信号0，强制关闭状态`);
+                        // 异步更新UI状态，避免在处理过程中修改DOM
+                        requestAnimationFrame(() => {
+                            node.classList.remove('active');
+                            node.state.outputValues[0] = 0;
+                        });
+                    }
+                    return 0; // 输出0
+                }
+                
+                // 正常处理逻辑
+                // 如果开关处于关闭状态（非active），则始终输出0
+                if (!node || !node.classList.contains('active')) {
+                    console.log(`开关触发器处于关闭状态，输出: 0`);
+                    return 0;
+                }
+                
+                // 如果开关处于打开状态，且有有效输入，则传递输入信号
+                if (validInputs.length > 0) {
+                    const result = validInputs[0] ? 1 : 0;
+                    console.log(`开关触发器处于打开状态，处理输入: [${validInputs.join(', ')}], 输出: ${result}`);
+                    return result;
+                }
+                
+                // 如果开关处于打开状态，但没有有效输入，则输出1
+                console.log(`开关触发器处于打开状态，无输入，输出: 1`);
+                return 1;
+            }
+        },
+        '灯': {
+            inputs: 1,
+            outputs: 0, // 没有输出
+            process: function(inputs, node) {
+                // 只判断有实际输入的端口（即非undefined）
+                const validInputs = inputs.filter(v => v !== undefined);
+                
+                // 如果没有有效输入，默认为熄灭状态
+                const isOn = validInputs.length > 0 ? validInputs[0] : false;
+                
+                console.log(`灯处理输入: [${validInputs.join(', ')}], 状态: ${isOn ? '亮' : '灭'}`);
+                
+                // 更换图片
+                if (node && node.querySelector('.node-icon-img')) {
+                    const imgEl = node.querySelector('.node-icon-img');
+                    
+                    if (isOn) {
+                        // 切换为亮灯图片
+                        imgEl.src = 'PNG/灯亮起.png';
+                        node.classList.add('active');
+                    } else {
+                        // 切换为普通灯图片
+                        imgEl.src = 'PNG/灯.png';
+                        node.classList.remove('active');
+                    }
+                }
+                
+                return 0; // 灯没有输出
+            }
+        },
+        '延时触发器': {
+            inputs: 1,
+            outputs: 1,
+            process: function(inputs, node) {
+                // 只判断有实际输入的端口（即非undefined）
+                const validInputs = inputs.filter(v => v !== undefined);
+                
+                // 如果没有有效输入，输出0
+                if(validInputs.length === 0) return 0;
+                
+                if(validInputs[0]) {
+                    // 记录当前时间，使用自定义延时后输出
+                    if(!node.processingDelay) {
+                        node.processingDelay = true;
+                        
+                        // 获取延时时间，默认为1秒
+                        const delayTime = (node.delayTime || 1) * 1000; // 转换为毫秒
+                        
+                        console.log(`延时触发器收到信号1，将在${delayTime/1000}秒后输出`);
+                        
+                        setTimeout(() => {
+                            // 延时结束后更新输出信号
+                            node.state.outputValues[0] = 1;
+                            node.classList.add('active');
+                            console.log(`延时触发器延时(${delayTime/1000}秒)结束，输出信号1`);
+                            
+                            // 清除延时状态标记
+                            node.processingDelay = false;
+                            
+                            // 更新信号指示器
+                            if(node.signalIndicator) {
+                                node.signalIndicator.textContent = "1";
+                                node.signalIndicator.style.backgroundColor = 'rgba(0, 128, 0, 0.7)';
+                                node.signalIndicator.style.boxShadow = '0 0 5px rgba(0, 255, 0, 0.5)';
+                            }
+                            
+                            // 传播信号到后续节点
+                            propagateSignal(node);
+                        }, delayTime);
+                    }
+                    // 延时中返回0，等待延时结束后再输出1
+                    return 0;
+                }
+                console.log(`延时触发器收到信号0，输出0`);
+                
+                // 如果延时器收到0信号，清除延时状态
+                if(node.processingDelay) {
+                    node.processingDelay = false;
+                    console.log('延时触发器取消延时');
+                }
+                
+                return 0;
+            }
+        },
+        '与门（&）': {
+            inputs: Infinity, // 无限输入
+            outputs: 1,
+            process: function(inputs, node) {
+                // 打印原始输入数组，便于调试
+                console.log(`与门处理: 原始输入数组: [${inputs.join(', ')}]`);
+                
+                // 重要修改：只考虑实际连接的输入（即非undefined且建立了连接的）
+                // 查找与这个与门相关的所有输入连接
+                const connectedInputs = connections.filter(conn => conn.endNode === node);
+                console.log(`与门处理: 实际连接数量: ${connectedInputs.length}`);
+                
+                // 如果没有连接，则输出0
+                if(connectedInputs.length === 0) {
+                    console.log('与门处理: 没有连接的输入，输出0');
+                    return 0;
+                }
+                
+                // 检查所有连接的输入信号
+                let allConnectedInputsAreOne = true;
+                let connectedValues = [];
+                
+                // 遍历每个连接，获取其输入值
+                connectedInputs.forEach(conn => {
+                    const inputIndex = conn.inputIndex;
+                    const inputValue = inputs[inputIndex];
+                    connectedValues.push(inputValue);
+                    
+                    if(inputValue !== 1) {
+                        allConnectedInputsAreOne = false;
+                    }
+                });
+                
+                // 输出取决于所有连接的输入是否都为1
+                const result = allConnectedInputsAreOne ? 1 : 0;
+                
+                // 详细记录连接的输入值及最终判断结果
+                console.log(`与门处理: 连接的输入值: [${connectedValues.join(', ')}]`);
+                console.log(`与门处理: 所有连接的输入都是1? ${allConnectedInputsAreOne}, 最终输出: ${result}`);
+                
+                return result;
+            }
+        },
+        'XOR信号器': {
+            inputs: 2,
+            outputs: 1,
+            process: function(inputs) {
+                // 只判断有实际输入的端口（即非undefined）
+                const validInputs = inputs.filter(v => v !== undefined);
+                
+                // XOR需要恰好两个输入，如果输入数量不足，返回0
+                if(validInputs.length < 2) return 0;
+                
+                // 有且仅有一个输入为1时，输出1
+                const result = (validInputs[0] ? 1 : 0) ^ (validInputs[1] ? 1 : 0);
+                console.log(`XOR信号器处理输入: [${validInputs.join(', ')}], 输出: ${result}`);
+                return result;
+            }
+        },
+        '或门（OR）': {
+            inputs: Infinity,
+            outputs: 1,
+            process: function(inputs) {
+                // 只判断有实际输入的端口（即非undefined）
+                const validInputs = inputs.filter(v => v !== undefined);
+                
+                // 如果没有有效输入，输出0
+                if(validInputs.length === 0) return 0;
+                
+                // 至少一个输入为1就输出1
+                const result = validInputs.some(val => val === 1) ? 1 : 0;
+                console.log(`或门处理输入: [${validInputs.join(', ')}], 输出: ${result}`);
+                return result;
+            }
+        },
+        '非门（NOT）': {
+            inputs: 1,
+            outputs: 1,
+            process: function(inputs, node) {
+                // 只判断有实际输入的端口（即非undefined）
+                const validInputs = inputs.filter(v => v !== undefined);
+                
+                // 如果没有有效输入，输出0（非门必须有输入才能输出）
+                if(validInputs.length === 0) {
+                    console.log(`非门没有有效输入，输出: 0`);
+                    return 0;
+                }
+                
+                // 输入为0输出1，输入为1输出0
+                const result = validInputs[0] ? 0 : 1;
+                console.log(`非门处理输入: [${validInputs.join(', ')}], 输出: ${result}`);
+                return result;
+            }
+        },
+        '分支（BR）': {
+            inputs: 1,
+            outputs: Infinity, // 可以有多个输出
+            process: function(inputs) {
+                // 只判断有实际输入的端口（即非undefined）
+                const validInputs = inputs.filter(v => v !== undefined);
+                
+                // 如果没有有效输入，输出0
+                if(validInputs.length === 0) return 0;
+                
+                // 分支节点只传递信号，不改变值
+                const result = validInputs[0] ? 1 : 0;
+                console.log(`分支处理输入: [${validInputs.join(', ')}], 输出: ${result}`);
+                return result;
+            }
+        },
+        '标记储存装置': {
+            inputs: 2,  // 两个输入端
+            outputs: 1,
+            process: function(inputs, node) {
+                // 只判断有实际输入的端口（即非undefined）
+                const validInputs = inputs.filter(v => v !== undefined);
+                
+                // 如果没有有效输入，输出0
+                if(validInputs.length === 0) {
+                    console.log(`标记储存装置无输入，输出: 0`);
+                    return 0;
+                }
+                
+                // 初始化控制端和输入端的识别状态
+                if (!node.state.controlPortIdentified) {
+                    // 第一个非undefined的信号是控制端
+                    for (let i = 0; i < inputs.length; i++) {
+                        if (inputs[i] !== undefined) {
+                            node.state.controlPort = i;
+                            node.state.controlPortIdentified = true;
+                            console.log(`标记储存装置：识别到控制端为端口 ${i}`);
+                            break;
+                        }
+                    }
+                }
+                
+                // 如果控制端已识别
+                if (node.state.controlPortIdentified) {
+                    const controlInput = inputs[node.state.controlPort];
+                    
+                    // 找到数据输入端（不是控制端的其他端口）
+                    let dataInput = undefined;
+                    for (let i = 0; i < inputs.length; i++) {
+                        if (i !== node.state.controlPort && inputs[i] !== undefined) {
+                            dataInput = inputs[i];
+                            break;
+                        }
+                    }
+                    
+                    // 当控制端为0时，输出始终为0
+                    if (controlInput === 0) {
+                        console.log(`标记储存装置控制端为0，无论输入是什么，输出: 0`);
+                        return 0;
+                    }
+                    
+                    // 当控制端为1时，输出等于输入端的信号（如果有）
+                    if (dataInput !== undefined) {
+                        console.log(`标记储存装置控制端为1，输入端为: ${dataInput}，输出: ${dataInput}`);
+                        return dataInput;
+                    } else {
+                        console.log(`标记储存装置控制端为1，但没有数据输入，输出: 0`);
+                        return 0;
+                    }
+                }
+                
+                // 默认情况，只有一个输入时暂不能确定逻辑
+                console.log(`标记储存装置暂不能确定逻辑，输出: 0`);
+                return 0;
+            },
+            reset: function(node) {
+                // 重置功能，包括清除控制端识别状态
+                node.state.stored = false;
+                node.state.controlPortIdentified = false;
+                node.state.controlPort = undefined;
+                console.log(`标记储存装置重置，控制端识别状态已清除`);
+                return 0;
+            }
+        }
+    };
+    
+    // 吸附点可视化辅助
+    let snapPointEl = null;
+    function showSnapPoint(x, y) {
+        if (!snapPointEl) {
+            snapPointEl = document.createElement('div');
+            snapPointEl.style.position = 'absolute';
+            snapPointEl.style.width = '8px';
+            snapPointEl.style.height = '8px';
+            snapPointEl.style.background = 'red';
+            snapPointEl.style.borderRadius = '50%';
+            snapPointEl.style.zIndex = 1000;
+            snapPointEl.style.pointerEvents = 'none';
+            gridContainer.appendChild(snapPointEl);
+        }
+        snapPointEl.style.left = `${x - 4 + panOffset.x}px`;
+        snapPointEl.style.top = `${y - 4 + panOffset.y}px`;
+        snapPointEl.style.display = 'block';
+    }
+    function hideSnapPoint() {
+        if (snapPointEl) snapPointEl.style.display = 'none';
+    }
+    
+    // 更新CSS变量
+    function updateColorTheme(color) {
+        document.documentElement.style.setProperty('--primary-color', color);
+        currentColor = color;
+    }
+    
+    // 创建新节点（可选带图标）
+    function createNode(x, y, iconSrc = null, iconType = null) {
+        const node = document.createElement('div');
+        if (iconSrc) {
+            node.className = 'node node-icon-card';
+            node.dataset.componentType = iconType;
+
+            // 初始化多输入/多输出的状态
+            node.state = {
+                inputValues: [],
+                outputValues: [],
+                stored: false
+            };
+            // 根据组件类型初始化输入/输出数组长度
+            if(componentLogic[iconType]) {
+                const logic = componentLogic[iconType];
+                
+                // 为开关触发器特殊处理，初始化inputValues为undefined
+                if (iconType === '开关触发器') {
+                    node.state.inputValues = new Array(logic.inputs === Infinity ? 2 : logic.inputs).fill(undefined);
+                    node.state.outputValues = new Array(logic.outputs === Infinity ? 2 : logic.outputs).fill(0);
+                    node.state.outputValues[0] = 0;
+                    node.classList.remove('active');
+                    console.log(`创建开关触发器，初始状态为关闭，输出: 0，输入未连接`);
+                } else {
+                    // 其他组件保持原有初始化方式
+                node.state.inputValues = new Array(logic.inputs === Infinity ? 2 : logic.inputs).fill(0);
+                node.state.outputValues = new Array(logic.outputs === Infinity ? 2 : logic.outputs).fill(0);
+                }
+                
+                // 为标记储存装置添加控制端识别状态
+                if (iconType === '标记储存装置') {
+                    node.state.controlPortIdentified = false; // 控制端是否已识别
+                    node.state.controlPort = undefined;       // 控制端索引
+                    console.log(`创建标记储存装置，控制端尚未识别`);
+                }
+                
+                // 为节点添加信号状态指示器（如果有输出）
+                if (logic.outputs > 0) {
+                    const signalIndicator = document.createElement('div');
+                    signalIndicator.className = 'signal-indicator';
+                    signalIndicator.textContent = '0'; // 默认显示0
+                    
+                    // 根据组件类型设置样式
+                    signalIndicator.style.position = 'absolute';
+                    signalIndicator.style.top = '-18px'; // 定位在组件上方
+                    signalIndicator.style.left = '50%';
+                    signalIndicator.style.transform = 'translateX(-50%)';
+                    signalIndicator.style.backgroundColor = 'rgba(0, 0, 0, 0.6)';
+                    signalIndicator.style.color = 'white';
+                    signalIndicator.style.padding = '2px 8px';
+                    signalIndicator.style.borderRadius = '10px';
+                    signalIndicator.style.fontSize = '12px';
+                    signalIndicator.style.fontWeight = 'bold';
+                    signalIndicator.style.zIndex = '5';
+                    signalIndicator.style.userSelect = 'none';
+                    signalIndicator.style.pointerEvents = 'none'; // 防止干扰点击事件
+                    
+                    node.appendChild(signalIndicator);
+                    node.signalIndicator = signalIndicator; // 保存引用以便后续更新
+                }
+            }
+        } else {
+            node.className = 'node';
+        }
+        node.style.left = `${x}px`;
+        node.style.top = `${y}px`;
+        node.style.background = getComputedStyle(document.documentElement).getPropertyValue('--node-gradient');
+        node.dataset.x = x;
+        node.dataset.y = y;
+        if (iconSrc) {
+            const img = document.createElement('img');
+            img.src = iconSrc;
+            img.alt = iconType || '';
+            img.className = 'node-icon-img';
+            node.appendChild(img);
+            node.dataset.icon = iconType;
+        }
+        
+        // 禁止端口拖动节点，但允许节点双击事件
+        node.addEventListener('mousedown', (e) => {
+            if (e.target.classList.contains('port')) {
+                e.stopPropagation();
+                return;
+            }
+            e.stopPropagation();
+            if (branchMode) {
+                // 检查是否点击了端口
+                if(e.target.classList.contains('port')) {
+                    branchStart = node;
+                    branchStartPort = e.target;
+                    return;
+                }
+                return;
+            }
+            isDragging = true;
+            currentNode = node;
+        });
+        
+        // 移除原始的双击事件，交给setupNodeEvents处理
+        
+        gridContainer.appendChild(node);
+        nodes.push(node);
+        return node;
+    }
+    
+    // 优化updateNodesAndBranches性能
+    function updateNodesAndBranches() {
+        // 预先计算一次更新，批量更新DOM
+        const updates = [];
+        
+        // 收集所有节点位置更新
+        nodes.forEach(node => {
+            updates.push(() => {
+                node.style.left = `${parseInt(node.dataset.x) + panOffset.x}px`;
+                node.style.top = `${parseInt(node.dataset.y) + panOffset.y}px`;
+                node.style.zIndex = '1'; // 确保节点在连接线上层
+            });
+        });
+        
+        // 收集所有连接线更新
+        connections.forEach(conn => {
+            updates.push(() => updateConnectionPosition(conn));
+        });
+        
+        // 确保连接线在节点下方的DOM位置更新
+        connections.forEach(conn => {
+            if (conn.element && conn.element.parentNode === gridContainer) {
+                updates.push(() => {
+                    // 将连接线移动到DOM树的最前面，确保它在组件下层
+                    if (gridContainer.firstChild && gridContainer.firstChild !== conn.element) {
+                        gridContainer.insertBefore(conn.element, gridContainer.firstChild);
+                    }
+                });
+            }
+        });
+        
+        // 使用requestAnimationFrame批量应用更新
+        requestAnimationFrame(() => {
+            updates.forEach(update => update());
+        });
+    }
+    
+    // 优化拖动性能
+    gridContainer.addEventListener('mousemove', function(e) {
+        if (branchMode && connectStartPort) {
+            // TODO: 可以在这里添加动态显示连接线的功能
+        }
+
+        if (isDragging && currentNode) {
+            // 拖动节点
+            const rect = gridContainer.getBoundingClientRect();
+            const x = snapToGridCellCenter(e.clientX - rect.left - panOffset.x);
+            const y = snapToGridCellCenter(e.clientY - rect.top - panOffset.y);
+            
+            // 节流操作 - 只在位置真正改变时才更新
+            if (parseInt(currentNode.dataset.x) !== x || parseInt(currentNode.dataset.y) !== y) {
+                // 检查新位置是否有效（排除当前节点自己）
+                const isValidPosition = !nodes.some(node => {
+                    if (node === currentNode) return false; // 排除自己
+                    
+                    const nodeX = parseInt(node.dataset.x);
+                    const nodeY = parseInt(node.dataset.y);
+                    
+                    const gridSizeValue = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--grid-size'));
+                    const minDistance = gridSizeValue * 1.5; // 减小最小距离，使节点可以放置得更近
+                    const distance = Math.sqrt(Math.pow(nodeX - x, 2) + Math.pow(nodeY - y, 2));
+                    
+                    return distance < minDistance;
+                });
+                
+                if (isValidPosition) {
+                    // 新位置有效，允许移动
+                    showSnapPoint(x + 20, y + 20);
+                    setTimeout(hideSnapPoint, 800);
+                    currentNode.dataset.x = x;
+                    currentNode.dataset.y = y;
+                    
+                    // 移除不允许放置的视觉提示（如果有的话）
+                    currentNode.classList.remove('invalid-position');
+                    
+                    // 使用requestAnimationFrame提高渲染性能
+                    requestAnimationFrame(() => {
+                        updateNodesAndBranches();
+                        
+                        // 发送节点移动事件
+                        document.dispatchEvent(new CustomEvent('node-move', {
+                            detail: { node: currentNode }
+                        }));
+                    });
+                } else {
+                    // 新位置无效，添加视觉提示但不更新位置
+                    currentNode.classList.add('invalid-position');
+                }
+            }
+        } else if (isPanning) {
+            // 画布平移
+            const deltaX = e.clientX - panStart.x;
+            const deltaY = e.clientY - panStart.y;
+            
+            // 节流操作 - 只在位置变化超过一定阈值时更新
+            if (Math.abs(deltaX) > 2 || Math.abs(deltaY) > 2) {
+                panOffset.x = lastPan.x + deltaX;
+                panOffset.y = lastPan.y + deltaY;
+                
+                // 同步全局panOffset
+                window.panOffset = panOffset;
+                
+                // 使用requestAnimationFrame优化渲染
+                requestAnimationFrame(() => {
+                    updatePan();
+                    
+                    // 发送画布更新事件
+                    document.dispatchEvent(new CustomEvent('pan-update', {
+                        detail: { panOffset: panOffset }
+                    }));
+                });
+            }
+        }
+    });
+    
+    // 修改node双击事件监听，提高灵敏度
+    function setupNodeEvents() {
+        // 为所有节点添加双击事件，提高灵敏度
+        const handleNodeDoubleClick = (node) => {
+            if(node.dataset.componentType === '开关触发器') {
+                toggleSwitch(node);
+                return true;
+            } else if(node.dataset.componentType === '标记储存装置') {
+                resetStorage(node);
+                return true;
+            }
+            return false;
+        };
+        
+        // 使用单击加时间戳模拟双击，提高响应速度
+        document.addEventListener('click', function(e) {
+            const node = e.target.closest('.node');
+            if (!node) return;
+            
+            // 点击灯组件直接返回，不做处理
+            if (node.dataset.componentType === '灯') return;
+            
+            const now = Date.now();
+            if (!node.lastClickTime) {
+                node.lastClickTime = now;
+                return;
+            }
+            
+            // 如果两次点击间隔小于300ms，认为是双击
+            if (now - node.lastClickTime < 300) {
+                handleNodeDoubleClick(node);
+                e.stopPropagation(); // 阻止事件冒泡
+                node.lastClickTime = 0; // 重置点击时间，避免连续触发
+            } else {
+                node.lastClickTime = now;
+            }
+        });
+        
+        // 添加右键菜单事件处理，用于设置延时触发器的延时时间
+        document.addEventListener('contextmenu', function(e) {
+            const node = e.target.closest('.node');
+            if (!node) return;
+            
+            // 只对延时触发器节点处理右键事件
+            if (node.dataset.componentType === '延时触发器') {
+                e.preventDefault(); // 阻止默认右键菜单
+                
+                // 如果之前有其他输入框，先移除
+                const existingDialog = document.getElementById('delay-time-dialog');
+                if (existingDialog) {
+                    existingDialog.remove();
+                }
+                
+                // 显示延时设置输入框
+                showDelayTimeInput(node, e.clientX, e.clientY);
+            }
+        });
+    }
+    
+    // 触发开关组件 - 优化响应速度
+    function toggleSwitch(node) {
+        if(!node.state) return;
+        
+        // 检查是否有实际连接的输入信号为0
+        // 首先检查该开关是否有任何连接到它的输入
+        const hasInputConnections = connections.some(conn => conn.endNode === node);
+        
+        // 如果有输入连接，则检查输入值；如果没有连接，则允许自由切换状态
+        const hasZeroInput = hasInputConnections ? 
+            node.state.inputValues.some(v => v === 0) : false;
+        
+        // 获取当前开关状态
+        const currentActive = node.classList.contains('active');
+        
+        console.log(`开关触发操作: 当前状态=${currentActive ? '开启' : '关闭'}, 有输入连接=${hasInputConnections}, 有0信号输入=${hasZeroInput}`);
+        
+        // 如果当前是关闭状态，尝试激活，需要检查输入条件
+        if(!currentActive) {
+            // 如果有输入信号为0，不允许激活开关
+            if(hasZeroInput) {
+                showToast('无法激活开关：输入信号为0');
+                console.log(`开关激活失败：输入信号为0`);
+                return; // 提前返回，不允许激活
+            }
+            
+            // 允许激活开关
+            node.classList.add('active');
+            node.state.outputValues[0] = 1; // 打开状态输出1
+            console.log(`开关从关闭状态切换为打开状态，输出: 1`);
+            
+            // 更新信号指示器
+            updateSignalIndicator(node, 1);
+        } else {
+            // 关闭开关总是允许的
+            node.classList.remove('active');
+            node.state.outputValues[0] = 0; // 关闭状态输出0
+            console.log(`开关从打开状态切换为关闭状态，输出: 0`);
+            
+            // 更新信号指示器
+            updateSignalIndicator(node, 0);
+        }
+        
+        // 查找与该节点相关的所有连接
+        const relatedConnections = connections.filter(conn => conn.startNode === node);
+        console.log(`开关相关连接数量: ${relatedConnections.length}`);
+        
+        // 更新所有下游节点的输入值
+        relatedConnections.forEach(conn => {
+            const endNode = conn.endNode;
+            const isActive = node.classList.contains('active');
+            const signalValue = isActive ? 1 : 0;
+            
+            if(endNode.dataset.componentType === '与门（&）') {
+                // 更新与门的对应输入
+                endNode.state.inputValues[conn.inputIndex] = signalValue;
+                console.log(`直接更新与门输入[${conn.inputIndex}]为${signalValue}`);
+            } else {
+                // 更新其他组件的输入
+                endNode.state.inputValues[0] = signalValue;
+            }
+            
+            // 强制重新处理节点逻辑
+            processNodeLogic(endNode, new Set());
+        });
+        
+        // 记录整个电路的状态
+        logCircuitState();
+        
+        // 使用requestAnimationFrame延迟信号传播到下一帧，避免阻塞UI渲染
+        requestAnimationFrame(() => {
+            // 使用setTimeout进一步减少阻塞
+            setTimeout(() => {
+                // 传播信号变化到所有连接的节点
+                propagateSignal(node, new Set());
+            }, 0);
+        });
+    }
+    
+    // 重置储存器
+    function resetStorage(node) {
+        if(!node.state || !node.dataset.componentType) return;
+        
+        const logic = componentLogic[node.dataset.componentType];
+        if(logic && logic.reset) {
+            node.state.outputValues[0] = logic.reset(node);
+            
+            // 视觉反馈
+            if(node.state.outputValues[0]) {
+                node.classList.add('active');
+            } else {
+                node.classList.remove('active');
+            }
+            
+            // 传播信号变化
+            propagateSignal(node);
+        }
+    }
+    
+    // 信号传播函数 - 优化性能
+    function propagateSignal(startNode, visited = new Set()) {
+        if (visited.has(startNode)) return;
+        visited.add(startNode);
+        
+        // 获取所有与该节点相关的连接
+        const connectedLines = connections.filter(conn => 
+            conn.startNode === startNode || conn.endNode === startNode
+        );
+        
+        // 减少频繁的日志输出
+        // console.log(`传播信号: ${startNode.dataset.componentType || 'unknown'}节点, ${connectedLines.length}个连接, 输出值:${startNode.state ? startNode.state.outputValues[0] : 'unknown'}`);
+        
+        // 使用promise与setTimeout结合，避免长时间阻塞主线程
+        const processConnections = async () => {
+            for (let conn of connectedLines) {
+                let outputNode, inputNode, inputIndex = 0;
+                
+                // 确定输出节点和输入节点
+                if (startNode === conn.startNode) {
+                    // 如果当前节点是连接的起点，则它是输出节点
+                    outputNode = startNode;
+                    inputNode = conn.endNode;
+                    inputIndex = conn.inputIndex || 0;
+                } else if (startNode === conn.endNode) {
+                    // 如果当前节点是连接的终点，且它不是灯（灯只能接收信号）
+                    if (startNode.dataset.componentType !== '灯') {
+                        // 这种情况下，当前节点可能是输出节点（反向传播）
+                        outputNode = startNode;
+                        inputNode = conn.startNode;
+                        inputIndex = 0; // 反向连接通常使用默认索引
+                    } else {
+                        // 灯只能接收信号，不能发送
+                        return;
+                    }
+                }
+                
+                // 传递信号
+                if (outputNode && outputNode.state && inputNode && inputNode.state) {
+                    const signalValue = outputNode.state.outputValues[0];
+                    
+                    // 如果是与门，写入对应inputIndex
+                    if (inputNode.dataset.componentType === '与门（&）') {
+                        inputNode.state.inputValues[inputIndex] = signalValue;
+                    } else {
+                        inputNode.state.inputValues[0] = signalValue;
+                    }
+                    
+                    // 处理接收节点的逻辑
+                    processNodeLogic(inputNode, visited);
+                }
+                
+                // 每处理几个连接就让出主线程，提高响应性
+                if ((connectedLines.indexOf(conn) + 1) % 5 === 0) {
+                    await new Promise(resolve => setTimeout(resolve, 0));
+                }
+            }
+        };
+    
+        processConnections();
+    }
+    
+    // 修改processNodeLogic函数，优化与门的信号传播并更新信号指示器
+    function processNodeLogic(node, visited = new Set()) {
+        if(!node.state || !node.dataset.componentType) return;
+        
+        const logic = componentLogic[node.dataset.componentType];
+        if(!logic) return;
+        
+        console.log(`处理节点逻辑: ${node.dataset.componentType}, 输入值=[${node.state.inputValues.join(',')}]`);
+        
+        // 特殊处理延时触发器
+        if(node.dataset.componentType === '延时触发器') {
+            const result = logic.process(node.state.inputValues, node);
+            node.state.outputValues[0] = result;
+            if(result) {
+                node.classList.add('active');
+            } else {
+                node.classList.remove('active');
+            }
+            
+            // 更新信号指示器
+            updateSignalIndicator(node, result);
+            return;
+        }
+        
+        // 灯节点：始终执行process，保证图片和active状态同步
+        if(node.dataset.componentType === '灯') {
+            logic.process(node.state.inputValues, node);
+            // 更新信号指示器
+            updateSignalIndicator(node, node.state.inputValues[0] || 0);
+            return; // 灯不需要传播信号
+        }
+        
+        // 保存之前的输出状态，用于检测变化
+        const prevOutput = node.state.outputValues[0];
+        
+        // 执行节点的逻辑处理
+        const result = logic.process(node.state.inputValues, node);
+        node.state.outputValues[0] = result;
+        
+        console.log(`${node.dataset.componentType}处理结果: 输出=${result}, 新状态=${result ? '激活' : '不激活'}`);
+        
+        // 更新节点的视觉状态
+        if(result) {
+            // 立即更新UI状态，而不是使用requestAnimationFrame
+            node.classList.add('active');
+        } else {
+            node.classList.remove('active');
+        }
+        
+        // 更新信号指示器
+        updateSignalIndicator(node, result);
+        
+        // 如果输出发生变化，则传播信号
+        if (prevOutput !== result) {
+            console.log(`${node.dataset.componentType}节点输出从${prevOutput}变为${result}，立即传播信号`);
+            
+            // 对于与门，立即传播信号
+            if(node.dataset.componentType === '与门（&）') {
+                // 查找此节点连接的下游节点
+                const connectedNodes = connections.filter(conn => conn.startNode === node)
+                    .map(conn => conn.endNode);
+                
+                console.log(`与门连接了${connectedNodes.length}个下游节点`);
+                
+                // 立即更新所有下游节点
+                connectedNodes.forEach(endNode => {
+                    // 设置输入值
+                    endNode.state.inputValues[0] = result;
+                    console.log(`与门更新下游节点${endNode.dataset.componentType}的输入为${result}`);
+                    
+                    // 如果是灯，立即处理以更新显示状态
+                    if(endNode.dataset.componentType === '灯') {
+                        const lightLogic = componentLogic['灯'];
+                        if(lightLogic) {
+                            lightLogic.process(endNode.state.inputValues, endNode);
+                            console.log(`与门输出${result}，灯状态已更新`);
+                            // 更新灯的信号指示器
+                            updateSignalIndicator(endNode, result);
+                        }
+                    } else {
+                        // 对其他类型的节点递归处理
+                        processNodeLogic(endNode, visited);
+                    }
+                });
+            }
+            
+            // 使用requestAnimationFrame和setTimeout分离信号传播，避免阻塞UI
+            requestAnimationFrame(() => {
+                setTimeout(() => {
+                    propagateSignal(node, visited);
+                }, 0);
+            });
+        }
+    }
+    
+    // 添加鼠标移动事件检测，在连接模式下实时显示连接线
+    gridContainer.addEventListener('mousemove', function(e) {
+        if (branchMode && connectStartPort) {
+            // TODO: 可以在这里添加动态显示连接线的功能
+        }
+
+        if (isDragging && currentNode) {
+            // 拖动节点
+            const rect = gridContainer.getBoundingClientRect();
+            const x = snapToGridCellCenter(e.clientX - rect.left - panOffset.x);
+            const y = snapToGridCellCenter(e.clientY - rect.top - panOffset.y);
+            
+            // 检查新位置是否有效（排除当前节点自己）
+            const isValidPosition = !nodes.some(node => {
+                if (node === currentNode) return false; // 排除自己
+                
+                const nodeX = parseInt(node.dataset.x);
+                const nodeY = parseInt(node.dataset.y);
+                
+                const gridSizeValue = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--grid-size'));
+                const minDistance = gridSizeValue * 1.5; // 减小最小距离，使节点可以放置得更近
+                const distance = Math.sqrt(Math.pow(nodeX - x, 2) + Math.pow(nodeY - y, 2));
+                
+                return distance < minDistance;
+            });
+            
+            if (isValidPosition) {
+                // 新位置有效，允许移动
+                showSnapPoint(x + 20, y + 20);
+                setTimeout(hideSnapPoint, 800);
+                currentNode.dataset.x = x;
+                currentNode.dataset.y = y;
+                
+                // 移除不允许放置的视觉提示（如果有的话）
+                currentNode.classList.remove('invalid-position');
+            } else {
+                // 新位置无效，添加视觉提示但不更新位置
+                currentNode.classList.add('invalid-position');
+            }
+            
+            // 更新节点位置和连接线
+            updateNodesAndBranches();
+            
+            // 发送节点移动事件
+            document.dispatchEvent(new CustomEvent('node-move', {
+                detail: { node: currentNode }
+            }));
+        } else if (isPanning) {
+            // 画布平移
+            const deltaX = e.clientX - panStart.x;
+            const deltaY = e.clientY - panStart.y;
+            panOffset.x = lastPan.x + deltaX;
+            panOffset.y = lastPan.y + deltaY;
+            
+            // 同步全局panOffset
+            window.panOffset = panOffset;
+            
+            // 发送画布更新事件
+            document.dispatchEvent(new CustomEvent('pan-update', {
+                detail: { panOffset: panOffset }
+            }));
+            
+            updatePan();
+        }
+    });
+    
+    function updatePan() {
+        // 网格背景平移
+        if (gridBg) {
+            gridBg.style.backgroundPosition = `${panOffset.x % gridSize}px ${panOffset.y % gridSize}px`;
+        }
+        // 同步全局panOffset变量
+        window.panOffset = panOffset;
+        
+        // 发送pan-update事件，通知connection.js
+        document.dispatchEvent(new CustomEvent('pan-update', {
+            detail: { panOffset: panOffset }
+        }));
+        
+        // 打印调试信息
+        console.log(`画布偏移更新: x=${panOffset.x}, y=${panOffset.y}`);
+        
+        updateNodesAndBranches();
+    }
+    
+    function updateNodesAndBranches() {
+        // 更新节点位置
+        nodes.forEach(node => {
+            node.style.left = `${parseInt(node.dataset.x) + panOffset.x}px`;
+            node.style.top = `${parseInt(node.dataset.y) + panOffset.y}px`;
+            node.style.zIndex = '1'; // 确保节点在连接线上层
+        });
+        
+        // 更新所有连接线
+        connections.forEach(conn => {
+            updateConnectionPosition(conn);
+        });
+        
+        // 确保连接线在节点下方
+        connections.forEach(conn => {
+            if (conn.element && conn.element.parentNode === gridContainer) {
+                // 将连接线移动到DOM树的最前面，确保它在组件下层
+                if (gridContainer.firstChild && gridContainer.firstChild !== conn.element) {
+                    gridContainer.insertBefore(conn.element, gridContainer.firstChild);
+                }
+            }
+        });
+    }
+    
+    // 修改鼠标抬起事件，处理连接取消
+    document.addEventListener('mouseup', (e) => {
+        isPanning = false;
+        // 连线模式下点击空白处取消
+        if(branchMode && branchStart && !e.target.closest('.node')) {
+            branchStart.classList.remove('connecting-start');
+            branchStart = null;
+        }
+        gridContainer.style.cursor = branchMode ? 'pointer' : (nodeMode ? 'crosshair' : 'default');
+        isDragging = false;
+        currentNode = null;
+    });
+    
+    addNodeBtn.addEventListener('click', () => {
+        nodeMode = !nodeMode;
+        branchMode = false;
+        addNodeBtn.classList.toggle('active', nodeMode);
+        addBranchBtn.classList.remove('active');
+        gridContainer.style.cursor = nodeMode ? 'crosshair' : 'default';
+    });
+    
+    addBranchBtn.addEventListener('click', () => {
+        branchMode = !branchMode;
+        nodeMode = false;
+        
+        // 如果关闭连线模式，清除连接状态
+        if (!branchMode && connectingStart) {
+            connectingStart.classList.remove('connecting-start');
+            connectingStart = null;
+        }
+        
+        addBranchBtn.classList.toggle('active', branchMode);
+        addNodeBtn.classList.remove('active');
+        gridContainer.style.cursor = branchMode ? 'pointer' : 'default';
+        
+        console.log('连接模式: ' + (branchMode ? '开启' : '关闭'));
+    });
+    
+    clearBtn.addEventListener('click', () => {
+        // 清除节点
+        nodes.forEach(node => node.remove());
+        nodes = [];
+        
+        // 清除连接线
+        connections.forEach(conn => conn.element.remove());
+        connections = [];
+        
+        // 重置状态
+        nodeMode = false;
+        branchMode = false;
+        
+        if (connectingStart) {
+            connectingStart.classList.remove('connecting-start');
+            connectingStart = null;
+        }
+        
+        addNodeBtn.classList.remove('active');
+        addBranchBtn.classList.remove('active');
+        
+        console.log('清空所有元素');
+    });
+    
+    nodeColorInput.addEventListener('input', () => {
+        updateColorTheme(nodeColorInput.value);
+        updateNodesAndBranches();
+    });
+    
+    // 只能吸附到网格格子的正中心
+    function snapToGridCellCenter(value) {
+        return Math.floor(value / gridSize) * gridSize + gridSize / 2 - 20; // 40px节点
+    }
+
+    // 重新实现拖放功能 - 作为独立功能放在前面，确保优先级最高
+    function setupDragAndDrop() {
+        console.log('Setting up drag and drop...');
+        
+        // 创建警告光标样式的元素
+        const warningCursor = document.createElement('div');
+        warningCursor.className = 'warning-cursor';
+        warningCursor.innerHTML = '❌';
+        warningCursor.style.display = 'none';
+        warningCursor.style.position = 'absolute';
+        warningCursor.style.color = 'red';
+        warningCursor.style.fontSize = '24px';
+        warningCursor.style.pointerEvents = 'none';
+        warningCursor.style.zIndex = '1000';
+        warningCursor.style.marginLeft = '10px';
+        warningCursor.style.marginTop = '-10px';
+        document.body.appendChild(warningCursor);
+        
+        // 设置图标为可拖动
+        const sidebarIcons = document.querySelectorAll('.sidebar-icon');
+        sidebarIcons.forEach(icon => {
+            icon.draggable = true;
+            
+            icon.addEventListener('dragstart', function(e) {
+                console.log('DRAG START:', icon.dataset.icon);
+                // 存储被拖动的图标信息
+                e.dataTransfer.setData('icon-type', icon.dataset.icon);
+                e.dataTransfer.setData('icon-src', icon.src);
+                e.dataTransfer.effectAllowed = 'copy';
+            });
+        });
+        
+        // 设置网格为拖放区域
+        const gridContainer = document.getElementById('grid-container');
+        
+        // 处理拖动悬停
+        gridContainer.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            
+            // 计算网格坐标
+            const rect = gridContainer.getBoundingClientRect();
+            const x = snapToGridCellCenter(e.clientX - rect.left - panOffset.x);
+            const y = snapToGridCellCenter(e.clientY - rect.top - panOffset.y);
+            
+            // 检查位置是否有效（不与现有节点太近）
+            const isValidPosition = checkValidPosition(x, y);
+            
+            // 显示警告光标
+            warningCursor.style.display = 'block';
+            warningCursor.style.left = (e.clientX + 10) + 'px';
+            warningCursor.style.top = (e.clientY - 10) + 'px';
+            
+            // 根据位置有效性改变光标和警告标志
+            if (isValidPosition) {
+                e.dataTransfer.dropEffect = 'copy';
+                warningCursor.style.display = 'none';
+            } else {
+                e.dataTransfer.dropEffect = 'none';
+                warningCursor.style.display = 'block';
+            }
+        });
+
+        // 拖动进入区域
+        gridContainer.addEventListener('dragenter', function(e) {
+            e.preventDefault();
+        });
+        
+        // 拖动离开区域时隐藏警告光标
+        gridContainer.addEventListener('dragleave', function() {
+            warningCursor.style.display = 'none';
+        });
+        
+        // 处理拖放
+        gridContainer.addEventListener('drop', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // 隐藏警告光标
+            warningCursor.style.display = 'none';
+            
+            console.log('DROP EVENT TRIGGERED');
+            
+            // 获取拖动的图标信息
+            const iconType = e.dataTransfer.getData('icon-type');
+            const iconSrc = e.dataTransfer.getData('icon-src');
+            
+            console.log('Dropped icon:', iconType, iconSrc);
+            
+            if (iconType && iconSrc) {
+                // 计算要放置的位置
+                const rect = gridContainer.getBoundingClientRect();
+                const x = snapToGridCellCenter(e.clientX - rect.left - panOffset.x);
+                const y = snapToGridCellCenter(e.clientY - rect.top - panOffset.y);
+                
+                // 检查是否是有效位置
+                if (checkValidPosition(x, y)) {
+                    console.log('Creating node at:', x, y);
+                    // 创建新节点
+                    const newNode = createNode(x, y, iconSrc, iconType);
+                    console.log('Node created:', newNode);
+                } else {
+                    console.log('Invalid position - too close to another node');
+                }
+            }
+        });
+        
+        // 检查位置是否有效
+        function checkValidPosition(x, y) {
+            const gridSizeValue = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--grid-size'));
+            const minDistance = gridSizeValue * 1.5; // 减小最小距离，使节点可以放置得更近
+            
+            // 检查是否与现有节点太近
+            return !nodes.some(node => {
+                const nodeX = parseInt(node.dataset.x);
+                const nodeY = parseInt(node.dataset.y);
+                const distance = Math.sqrt(Math.pow(nodeX - x, 2) + Math.pow(nodeY - y, 2));
+                return distance < minDistance;
+            });
+        }
+        
+        console.log('Drag and drop setup complete');
+    }
+
+    // 初始化拖放功能 - 确保在最后调用，覆盖任何之前的设置
+    setupDragAndDrop();
+
+    // 初始化时同步一次
+    updatePan();
+
+    // 添加节点选择和删除操作
+    function setupNodeSelection() {
+        document.addEventListener('keydown', function(e) {
+            if (e.keyCode === 17 && !branchMode) {
+                branchMode = true;
+                gridContainer.style.cursor = 'pointer';
+                document.body.classList.add('connection-mode');
+                setCtrlIconActive(true);
+            }
+            // Delete键(46)或Backspace键(8)删除节点
+            if ((e.keyCode === 46 || e.keyCode === 8) && (selectedNode || hoveredNode)) {
+                const nodeToDelete = selectedNode || hoveredNode;
+                if (nodeToDelete) {
+                    // 删除与该节点有关的所有连接线
+                    connections = connections.filter(conn => {
+                        if (conn.startNode === nodeToDelete || conn.endNode === nodeToDelete) {
+                            conn.element.remove(); // 从DOM中删除线条
+                            return false; // 从数组中过滤掉
+                        }
+                        return true;
+                    });
+                    
+                    // 从节点数组中移除
+                    const index = nodes.indexOf(nodeToDelete);
+                    if (index > -1) {
+                        nodes.splice(index, 1);
+                    }
+                    
+                    // 移除DOM元素
+                    nodeToDelete.remove();
+                    
+                    // 重置状态
+                    selectedNode = null;
+                    hoveredNode = null;
+                    
+                    // 如果正在连接的节点被删除，重置连接状态
+                    if (connectingStart === nodeToDelete) {
+                        connectingStart = null;
+                    }
+                }
+            }
+        });
+
+        document.addEventListener('keyup', function(e) {
+            if (e.keyCode === 17) {
+                branchMode = false;
+                connectingStart = null;
+                gridContainer.style.cursor = 'default';
+                document.body.classList.remove('connection-mode');
+                setCtrlIconActive(false);
+                document.querySelectorAll('.connecting-start').forEach(node => {
+                    node.classList.remove('connecting-start');
+                });
+                document.querySelectorAll('.selected-input, .selected-output').forEach(node => {
+                    node.classList.remove('selected-input', 'selected-output');
+                });
+            }
+        });
+
+        // 监听鼠标悬停事件
+        gridContainer.addEventListener('mouseover', function(e) {
+            // 检查悬停的是否为节点（不包括端口）
+            if (e.target.classList.contains('node') || e.target.closest('.node')) {
+                const node = e.target.classList.contains('node') ? e.target : e.target.closest('.node');
+                
+                // 设置为当前悬停节点
+                hoveredNode = node;
+                
+                // 添加视觉提示
+                if (!node.classList.contains('selected')) {
+                    node.classList.add('hovered');
+                }
+            }
+        });
+
+        // 监听鼠标移出事件
+        gridContainer.addEventListener('mouseout', function(e) {
+            // 检查移出的是否为节点
+            if (e.target.classList.contains('node') || e.target.closest('.node')) {
+                const node = e.target.classList.contains('node') ? e.target : e.target.closest('.node');
+                
+                // 移除悬停提示
+                if (node === hoveredNode) {
+                    node.classList.remove('hovered');
+                    hoveredNode = null;
+                }
+            }
+        });
+
+        // 监听点击事件，选择节点
+        gridContainer.addEventListener('click', function(e) {
+            // 如果点击的是节点或节点内部（不是端口）
+            if (e.target.classList.contains('port')) {
+                return; // 不处理端口点击
+            }
+            
+            if (e.target.classList.contains('node') || e.target.closest('.node')) {
+                const node = e.target.classList.contains('node') ? e.target : e.target.closest('.node');
+                
+                // 先清除其他节点的选择状态
+                nodes.forEach(n => n.classList.remove('selected'));
+                
+                // 设置为当前选中节点
+                selectedNode = node;
+                node.classList.add('selected');
+                node.classList.remove('hovered');  // 移除悬停状态，避免视觉混淆
+            } else {
+                // 点击空白处取消选择
+                if (selectedNode) {
+                    selectedNode.classList.remove('selected');
+                    selectedNode = null;
+                }
+            }
+        });
+    }
+
+    // 初始化节点选择功能
+    setupNodeSelection();
+
+    // 为端口添加点击事件处理（只在连线模式下生效）
+    function setupPortConnections() {
+        // 不需要添加任何代码，所有连线处理都由connection.js完成
+        console.log('Port connection handling delegated to connection.js');
+    }
+
+    // 删除createBranch函数，改用connectionAPI
+    function createBranch(startNode, endNode, startPort, endPort, highlight = false) {
+        // 如果connectionAPI可用，使用它创建连接
+        if (window.connectionAPI && typeof window.connectionAPI.createConnection === 'function') {
+            return window.connectionAPI.createConnection(startNode, endNode, startPort, endPort);
+        }
+        
+        console.log('Connection API not available, cannot create connection');
+        return null;
+    }
+
+    // 初始化端口连接功能
+    setupPortConnections();
+
+    // 修改鼠标点击事件处理逻辑，防止灯作为连接起点
+    gridContainer.addEventListener('click', function(e) {
+        // 只在连接模式下处理
+        if (!branchMode) return;
+        
+        console.log('连线模式中，处理点击事件');
+        
+        // 查找被点击的节点（可能是节点的子元素）
+        const clickedElement = e.target;
+        const node = clickedElement.closest('.node');
+        
+        if (!node) {
+            // 点击了空白区域，取消连接
+            if (connectingStart) {
+                connectingStart.classList.remove('connecting-start');
+                connectingStart = null;
+                console.log('连接取消 - 点击空白区域');
+            }
+            return;
+        }
+        
+        // 点击了节点
+        if (!connectingStart) {
+            // 第一次点击，检查是否为灯
+            if (node.dataset.componentType === '灯') {
+                showToast('灯只能接收信号，不能作为连接起点！');
+                console.log('连接失败 - 灯不能作为起点');
+                return;
+            }
+            
+            // 正常设置起点
+            connectingStart = node;
+            node.classList.add('connecting-start');
+            console.log('连接起点设置:', node.dataset.componentType || '普通节点');
+        } 
+        else if (node !== connectingStart) {
+            // 灯只能作为终点，不能成为起点
+            if (connectingStart.dataset.componentType === '灯') {
+                showToast('灯只能接收信号，不能作为连接起点！');
+                connectingStart.classList.remove('connecting-start');
+                connectingStart = null;
+                console.log('连接失败 - 灯不能作为起点');
+                return;
+            }
+            
+            // 第二次点击不同节点
+            // 检查这两个节点之间是否已经存在连接
+            const existingConnection = connections.find(conn => 
+                (conn.startNode === connectingStart && conn.endNode === node) ||
+                (conn.startNode === node && conn.endNode === connectingStart)
+            );
+            
+            if (existingConnection) {
+                // 已存在连接，删除它
+                console.log('发现已存在连接，正在删除...');
+                
+                // 从DOM中移除连接线
+                existingConnection.element.remove();
+                
+                // 从connections数组中移除
+                const connectionIndex = connections.indexOf(existingConnection);
+                if (connectionIndex !== -1) {
+                    connections.splice(connectionIndex, 1);
+                }
+                
+                // 清除可能受影响的输入值
+                if (existingConnection.endNode.state && existingConnection.endNode.state.inputValues) {
+                    // 清除对应的输入值
+                    existingConnection.endNode.state.inputValues[existingConnection.inputIndex] = undefined;
+                    console.log(`清除节点 ${existingConnection.endNode.dataset.componentType} 的输入值[${existingConnection.inputIndex}]`);
+                    
+                    // 重新处理节点逻辑
+                    processNodeLogic(existingConnection.endNode, new Set());
+                }
+                
+                showToast('连接已删除');
+                logCircuitState();
+            } else {
+                // 不存在连接，尝试直接调用createGlowConnection创建新连接
+                console.log('尝试创建连接:', 
+                       connectingStart.dataset.componentType || '起点', 
+                       '->', 
+                       node.dataset.componentType || '终点');
+                
+                createGlowConnection(connectingStart, node);
+            }
+            
+            // 重置连接状态
+            connectingStart.classList.remove('connecting-start');
+            connectingStart = null;
+        }
+        else {
+            // 点击同一节点，取消连接
+            connectingStart.classList.remove('connecting-start');
+            connectingStart = null;
+            console.log('连接取消 - 点击相同节点');
+        }
+    });
+
+    // 创建连接线
+    function getPortType(node) {
+        if (!node || !node.dataset || !node.dataset.componentType) return 'unknown';
+        
+        const componentType = node.dataset.componentType;
+        
+        // 只有输出的组件
+        if (componentType === '非门（NOT）' || 
+            componentType === '分支（BR）' || 
+            componentType === '与门（&）' || 
+            componentType === 'XOR信号器' || 
+            componentType === '或门（OR）' ||
+            componentType === '开关触发器') return 'output';
+        
+        // 只有输入的组件
+        if (componentType === '灯') return 'input';
+        
+        // 既有输入又有输出的组件
+        if (componentType === '延时触发器' || 
+            componentType === '标记储存装置') {
+            return 'both';
+        }
+        
+        return 'unknown';
+    }
+
+    function createConnection(startNode, endNode) {
+        // 先检查是否有灯作为起点，这种情况禁止
+        if (startNode.dataset.componentType === '灯') {
+            showToast('灯只能接收信号，不能作为信号源！');
+            console.log('创建连接失败: 灯不能作为连接起点');
+            return null;
+        }
+        
+        let startType = getPortType(startNode);
+        let endType = getPortType(endNode);
+        
+        // 处理'both'类型的端口
+        if (startType === 'both') {
+            // 如果终点是输入端，则起点作为输出端
+            if (endType === 'input') {
+                startType = 'output';
+            }
+            // 如果终点是输出端，则起点作为输入端
+            else if (endType === 'output') {
+                startType = 'input';
+            }
+            // 如果终点也是'both'，默认起点作为输出端，终点作为输入端
+            else if (endType === 'both') {
+                startType = 'output';
+                endType = 'input';
+            }
+        }
+        else if (endType === 'both') {
+            // 如果起点是输入端，则终点作为输出端
+            if (startType === 'input') {
+                endType = 'output';
+            }
+            // 如果起点是输出端，则终点作为输入端
+            else if (startType === 'output') {
+                endType = 'input';
+            }
+        }
+        
+        // 特殊处理：允许从与门连接到开关触发器
+        if (startNode.dataset.componentType === '与门（&）' && endNode.dataset.componentType === '开关触发器') {
+            startType = 'output';
+            endType = 'input';
+            console.log('允许从与门连接到开关触发器');
+        }
+        
+        // 检查连接是否合法：输出->输入
+        if (startType !== 'output' || endType !== 'input') {
+            showToast('连接必须从输出端连接到输入端！');
+            console.log(`连接失败: ${startNode.dataset.componentType}(${startType}) -> ${endNode.dataset.componentType}(${endType})`);
+            return null;
+        }
+        
+        // 禁止两个灯之间相互连接
+        if (startNode.dataset.componentType === '灯' && endNode.dataset.componentType === '灯') {
+            showToast('灯只能接收信号，不能互相连接！');
+            return null;
+        }
+        
+        // 端口类型调整后再判断灯的输入端口
+        if (endNode.dataset.componentType === '灯') {
+            if (connections.some(conn => conn.endNode === endNode)) {
+                showToast('灯只能有一个输入端口！');
+                return null;
+            }
+        }
+        // 非门输入连接数量限制（最多1个）
+        if (endNode.dataset.componentType === '非门（NOT）') {
+            if (connections.some(conn => conn.endNode === endNode)) {
+                showToast('非门只能有一个输入端口！');
+                return null;
+            }
+        }
+        // XOR信号器输入连接数量限制（最多2个）
+        if (endNode.dataset.componentType === 'XOR信号器') {
+            const inputConnections = connections.filter(conn => conn.endNode === endNode);
+            if (inputConnections.length >= 2) {
+                showToast('XOR信号器最多只能有2个输入连接！');
+                return null;
+            }
+        }
+        // 延时触发器输入连接数量限制（最多1个）
+        if (endNode.dataset.componentType === '延时触发器') {
+            if (connections.some(conn => conn.endNode === endNode)) {
+                showToast('延时触发器只能有一个输入端口！');
+                return null;
+            }
+        }
+        // 标记储存装置输入连接数量限制（最多2个）
+        if (endNode.dataset.componentType === '标记储存装置') {
+            const inputConnections = connections.filter(conn => conn.endNode === endNode);
+            if (inputConnections.length >= 2) {
+                showToast('标记储存装置最多只能有2个输入端口！');
+                return null;
+            }
+            
+            // 移除这里为标记储存装置预设inputIndex的代码，因为现在是根据信号传递顺序确定控制端和输入端
+        }
+        // 分支输入连接数量限制（最多1个）
+        if (endNode.dataset.componentType === '分支（BR）') {
+            if (connections.some(conn => conn.endNode === endNode)) {
+                showToast('分支只能有一个输入端口！');
+                return null;
+            }
+        }
+        // 开关触发器输入连接数量限制（最多1个）
+        if (endNode.dataset.componentType === '开关触发器') {
+            const inputConnections = connections.filter(conn => conn.endNode === endNode);
+            if (inputConnections.length >= 1) {
+                showToast('开关触发器最多只能有1个输入连接！');
+                return null;
+            }
+        }
+        // 开关触发器输出连接数量限制（最多1个）
+        if (startNode.dataset.componentType === '开关触发器') {
+            const outputConnections = connections.filter(conn => conn.startNode === startNode);
+            if (outputConnections.length >= 1) {
+                showToast('开关触发器最多只能有1个输出连接！');
+                return null;
+            }
+        }
+        
+        // 检查是否已存在相同的连接
+        if (connections.some(conn => 
+            (conn.startNode === startNode && conn.endNode === endNode) ||
+            (conn.startNode === endNode && conn.endNode === startNode))) {
+            console.log('连接已存在!');
+            showToast('连接已存在');
+            return null;
+        }
+        let inputIndex = 0;
+        // 如果终点是与门，分配唯一inputIndex
+        if (endNode.dataset.componentType === '与门（&）') {
+            if (endNode.state && Array.isArray(endNode.state.inputValues)) {
+                // 找到第一个未被占用的位置
+                for (let i = 0; i < endNode.state.inputValues.length; i++) {
+                    if (endNode.state.inputValues[i] === undefined) {
+                        inputIndex = i;
+                        break;
+                    }
+                    // 如果都被占用，则扩展
+                    if (i === endNode.state.inputValues.length - 1) {
+                        endNode.state.inputValues.push(undefined);
+                        inputIndex = endNode.state.inputValues.length - 1;
+                    }
+                }
+            }
+        }
+        // 创建连接线元素
+        const line = document.createElement('div');
+        line.className = 'branch active';
+        line.style.position = 'absolute';
+        line.style.height = '2px'; // 从3px减小到2px
+        line.style.transformOrigin = 'left center';
+        line.style.backgroundColor = '#3ddad7';
+        line.style.boxShadow = '0 0 5px #3ddad7, 0 0 10px rgba(61,218,215,0.2)'; // 减小发光范围和强度
+        line.style.borderRadius = '1px'; // 与高度匹配
+        line.style.zIndex = '0';
+        const firstChild = gridContainer.firstChild;
+        if (firstChild) {
+            gridContainer.insertBefore(line, firstChild);
+        } else {
+            gridContainer.appendChild(line);
+        }
+        // 创建连接对象，记录inputIndex
+        const connection = {
+            element: line,
+            startNode: startNode,
+            endNode: endNode,
+            inputIndex: (endNode.dataset.componentType === '与门（&）') ? inputIndex : 0
+        };
+        updateConnectionPosition(connection);
+        connections.push(connection);
+        showToast('连接成功');
+        
+        // 连接建立后，立即传递起始节点的信号状态到终点节点
+        if (startNode.state && endNode.state) {
+            const signalValue = startNode.state.outputValues[0];
+            console.log(`连接建立: ${startNode.dataset.componentType} -> ${endNode.dataset.componentType}, 初始信号值: ${signalValue}`);
+            
+            // 根据节点类型更新输入值
+            if (endNode.dataset.componentType === '与门（&）') {
+                // 如果起始节点是开关触发器，需要根据开关状态决定传递的信号值
+                if (startNode.dataset.componentType === '开关触发器') {
+                    const isActive = startNode.classList.contains('active');
+                    endNode.state.inputValues[inputIndex] = isActive ? 1 : 0;
+                    console.log(`开关触发器 -> 与门: 传递信号 ${isActive ? 1 : 0}`);
+                    
+                    // 更新开关和与门的信号指示器
+                    updateSignalIndicator(startNode, isActive ? 1 : 0);
+                    
+                    // 处理与门逻辑后更新其信号指示器
+                    processNodeLogic(endNode);
+                } else {
+                    endNode.state.inputValues[inputIndex] = signalValue;
+                    
+                    // 更新起始节点和与门的信号指示器
+                    updateSignalIndicator(startNode, signalValue);
+                    
+                    // 处理与门逻辑后更新其信号指示器
+                    processNodeLogic(endNode);
+                }
+            } else if (endNode.dataset.componentType === '标记储存装置') {
+                // 不再根据result.inputIndex确定控制端和输入端
+                // 只需传递信号，标记储存装置的process函数会根据信号先后顺序识别控制端和输入端
+                if (startNode.dataset.componentType === '开关触发器') {
+                    const isActive = startNode.classList.contains('active');
+                    // 根据开关状态设置输入值
+                    endNode.state.inputValues[inputIndex] = isActive ? 1 : 0;
+                    console.log(`开关触发器 -> 标记储存装置: 传递信号 ${isActive ? 1 : 0}`);
+                    
+                    // 更新开关的信号指示器
+                    updateSignalIndicator(startNode, isActive ? 1 : 0);
+                } else {
+                    // 传递其他组件的信号
+                    endNode.state.inputValues[inputIndex] = signalValue;
+                    console.log(`${startNode.dataset.componentType} -> 标记储存装置: 传递信号 ${signalValue}`);
+                    
+                    // 更新起始节点的信号指示器
+                    updateSignalIndicator(startNode, signalValue);
+                }
+            } else {
+                // 如果起始节点是开关触发器，需要根据开关状态决定传递的信号值
+                if (startNode.dataset.componentType === '开关触发器') {
+                    const isActive = startNode.classList.contains('active');
+                    endNode.state.inputValues[0] = isActive ? 1 : 0;
+                    console.log(`开关触发器 -> ${endNode.dataset.componentType}: 传递信号 ${isActive ? 1 : 0}`);
+                    
+                    // 更新开关的信号指示器
+                    updateSignalIndicator(startNode, isActive ? 1 : 0);
+                } else {
+                    endNode.state.inputValues[0] = signalValue;
+                    
+                    // 更新起始节点的信号指示器
+                    updateSignalIndicator(startNode, signalValue);
+                }
+            }
+            
+            // 处理接收节点的逻辑
+                    processNodeLogic(endNode);
+            
+            // 如果起始节点是开关且处于激活状态，确保信号传播
+            if (startNode.dataset.componentType === '开关触发器') {
+                if (startNode.classList.contains('active')) {
+                    console.log(`开关触发器处于打开状态，传播信号1`);
+                    propagateSignal(startNode, new Set());
+                } else {
+                    console.log(`开关触发器处于关闭状态，不传播信号`);
+                }
+            } else {
+                // 其他类型的节点，正常传播信号
+                propagateSignal(startNode, new Set());
+            }
+        }
+        
+        // 连接成功后记录电路状态
+        console.log(`成功创建连接: [${startNode.dataset.componentType}] -> [${endNode.dataset.componentType}]`);
+        logCircuitState();
+        
+        return connection;
+    }
+
+    // 更新连接线位置
+    function updateConnectionPosition(connection) {
+        if (!connection || !connection.element || 
+            !connection.startNode || !connection.endNode) {
+            return;
+        }
+        
+        const line = connection.element;
+        const startNode = connection.startNode;
+        const endNode = connection.endNode;
+        
+        try {
+            // 获取节点位置
+            const startX = parseInt(startNode.dataset.x) + panOffset.x;
+            const startY = parseInt(startNode.dataset.y) + panOffset.y;
+            const endX = parseInt(endNode.dataset.x) + panOffset.x;
+            const endY = parseInt(endNode.dataset.y) + panOffset.y;
+            
+            // 节点宽高
+            const nodeWidth = startNode.offsetWidth || 40;
+            const nodeHeight = startNode.offsetHeight || 40;
+            
+            // 计算中心点
+            const centerStartX = startX + nodeWidth / 2;
+            const centerStartY = startY + nodeHeight / 2;
+            const centerEndX = endX + nodeWidth / 2;
+            const centerEndY = endY + nodeHeight / 2;
+            
+            // 计算线条长度和角度
+            const length = Math.sqrt(
+                Math.pow(centerEndX - centerStartX, 2) + 
+                Math.pow(centerEndY - centerStartY, 2)
+            );
+            const angle = Math.atan2(
+                centerEndY - centerStartY, 
+                centerEndX - centerStartX
+            ) * 180 / Math.PI;
+            
+            // 更新线条样式
+            line.style.left = `${centerStartX}px`;
+            line.style.top = `${centerStartY}px`;
+            line.style.width = `${length}px`;
+            line.style.transform = `rotate(${angle}deg)`;
+            line.style.zIndex = '0'; // 确保连接线在组件下层
+            
+            // 确保线条可见
+            line.style.visibility = 'visible';
+            line.style.display = 'block';
+            
+            // 确保线条在DOM中的位置是在组件下层
+            if (line.parentNode === gridContainer) {
+                // 将线条移动到DOM树的最前面，确保它在组件下层
+                if (gridContainer.firstChild && gridContainer.firstChild !== line) {
+                    gridContainer.insertBefore(line, gridContainer.firstChild);
+                }
+            }
+            
+        } catch (error) {
+            console.error('更新连接线出错:', error);
+        }
+    }
+
+    // SVG拖拽连线功能
+    let dragInfo = null;
+    let svgLayer = document.getElementById('connection-svg');
+    if (!svgLayer) {
+        svgLayer = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svgLayer.classList.add('connection-svg');
+        svgLayer.setAttribute('id', 'connection-svg');
+        svgLayer.style.position = 'absolute';
+        svgLayer.style.left = '0'; svgLayer.style.top = '0';
+        svgLayer.style.width = '100%'; svgLayer.style.height = '100%';
+        svgLayer.style.pointerEvents = 'none';
+        svgLayer.style.zIndex = '0';
+        document.getElementById('grid-container').appendChild(svgLayer);
+    }
+    window.svgLayer = svgLayer; // 全局可用
+
+    // 端口mousedown
+    function onPortMouseDown(e) {
+        if (!e.target.classList.contains('input-port') && !e.target.classList.contains('output-port')) return;
+        const port = e.target;
+        const node = port.closest('.node');
+        const portType = port.classList.contains('input-port') ? 'input' : 'output';
+        const portRect = port.getBoundingClientRect();
+        const gridRect = document.getElementById('grid-container').getBoundingClientRect();
+        const startX = portRect.left + portRect.width/2 - gridRect.left;
+        const startY = portRect.top + portRect.height/2 - gridRect.top;
+
+        // 创建临时SVG线
+        const tempPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        tempPath.setAttribute('class', 'temp-branch');
+        svgLayer.appendChild(tempPath);
+
+        dragInfo = { startNode: node, startPort: port, startType: portType, startX, startY, tempPath };
+
+        document.addEventListener('mousemove', onPortMouseMove);
+        document.addEventListener('mouseup', onPortMouseUp);
+    }
+
+    document.addEventListener('mousedown', onPortMouseDown);
+
+    function onPortMouseMove(e) {
+        if (!dragInfo) return;
+        const svgRect = svgLayer.getBoundingClientRect();
+        const mouseX = e.clientX - svgRect.left;
+        const mouseY = e.clientY - svgRect.top;
+
+        // 贝塞尔控制点
+        const c1x = dragInfo.startX + (dragInfo.startType === 'output' ? 60 : -60);
+        const c2x = mouseX + (dragInfo.startType === 'output' ? -60 : 60);
+        const d = `M${dragInfo.startX},${dragInfo.startY} C${c1x},${dragInfo.startY} ${c2x},${mouseY} ${mouseX},${mouseY}`;
+        dragInfo.tempPath.setAttribute('d', d);
+
+        // 判断目标节点及左右半区
+        let highlightNode = null;
+        document.querySelectorAll('.node').forEach(node => {
+            const rect = node.getBoundingClientRect();
+            if (
+                e.clientX >= rect.left && e.clientX <= rect.right &&
+                e.clientY >= rect.top && e.clientY <= rect.bottom
+            ) {
+                highlightNode = node;
+                const isRight = (e.clientX - rect.left) > rect.width / 2;
+                if (isRight) {
+                    node.classList.add('highlight-right');
+                    node.classList.remove('forbid-left');
+                    document.body.style.cursor = 'pointer';
+                } else {
+                    node.classList.remove('highlight-right');
+                    node.classList.add('forbid-left');
+                    document.body.style.cursor = 'not-allowed';
+                }
+            } else {
+                node.classList.remove('highlight-right', 'forbid-left');
+            }
+        });
+        if (!highlightNode) document.body.style.cursor = '';
+    }
+
+    function onPortMouseUp(e) {
+        if (!dragInfo) return;
+        let connected = false;
+        document.querySelectorAll('.node').forEach(node => {
+            const rect = node.getBoundingClientRect();
+            if (
+                e.clientX >= rect.left && e.clientX <= rect.right &&
+                e.clientY >= rect.top && e.clientY <= rect.bottom
+            ) {
+                const isRight = (e.clientX - rect.left) > rect.width / 2;
+                if (isRight && node !== dragInfo.startNode) {
+                    // 创建正式逻辑连接和高亮连线
+                    createGlowConnection(dragInfo.startNode, node);
+                    connected = true;
+                }
+            }
+            node.classList.remove('highlight-right', 'forbid-left');
+        });
+        dragInfo.tempPath.remove();
+        dragInfo = null;
+        document.body.style.cursor = '';
+        document.removeEventListener('mousemove', onPortMouseMove);
+        document.removeEventListener('mouseup', onPortMouseUp);
+    }
+
+    function createSVGConnection(startNode, endNode, startPort, endPort) {
+        // 计算起点终点
+        const gridRect = document.getElementById('grid-container').getBoundingClientRect();
+        const startRect = startPort.getBoundingClientRect();
+        const endRect = endPort.getBoundingClientRect();
+        const x1 = startRect.left + startRect.width/2 - gridRect.left;
+        const y1 = startRect.top + startRect.height/2 - gridRect.top;
+        const x2 = endRect.left + endRect.width/2 - gridRect.left;
+        const y2 = endRect.top + endRect.height/2 - gridRect.top;
+        const c1x = x1 + 60, c2x = x2 - 60;
+        const d = `M${x1},${y1} C${c1x},${y1} ${c2x},${y2} ${x2},${y2}`;
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('class', 'branch-path');
+        path.setAttribute('d', d);
+        svgLayer.appendChild(path);
+    }
+
+    // div直线连线功能
+    let dragLineDiv = null;
+    let dragStart = null;
+
+    // 端口mousedown事件
+    function onDivPortMouseDown(e) {
+        if (!e.target.classList.contains('input-port') && !e.target.classList.contains('output-port')) return;
+        const port = e.target;
+        const node = port.closest('.node');
+        const portRect = port.getBoundingClientRect();
+        const gridRect = document.getElementById('grid-container').getBoundingClientRect();
+        const startX = portRect.left + portRect.width/2 - gridRect.left;
+        const startY = portRect.top + portRect.height/2 - gridRect.top;
+
+        dragStart = { node, port, x: startX, y: startY };
+
+        // 创建临时线
+        dragLineDiv = document.createElement('div');
+        dragLineDiv.className = 'temp-branch';
+        dragLineDiv.style.left = `${startX}px`;
+        dragLineDiv.style.top = `${startY}px`;
+        document.getElementById('grid-container').appendChild(dragLineDiv);
+
+        document.addEventListener('mousemove', onDragLineMove);
+        document.addEventListener('mouseup', onDragLineUp);
+    }
+
+    document.getElementById('grid-container').addEventListener('mousedown', onDivPortMouseDown);
+
+    function onDragLineMove(e) {
+        if (!dragLineDiv || !dragStart) return;
+        const gridRect = document.getElementById('grid-container').getBoundingClientRect();
+        const mouseX = e.clientX - gridRect.left;
+        const mouseY = e.clientY - gridRect.top;
+        const dx = mouseX - dragStart.x;
+        const dy = mouseY - dragStart.y;
+        const length = Math.sqrt(dx*dx + dy*dy);
+        const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+        dragLineDiv.style.width = `${length}px`;
+        dragLineDiv.style.transform = `rotate(${angle}deg)`;
+    }
+
+    function onDragLineUp(e) {
+        if (!dragLineDiv || !dragStart) return;
+        // 判断是否在目标节点右半边
+        let connected = false;
+        document.querySelectorAll('.node').forEach(node => {
+            const rect = node.getBoundingClientRect();
+            if (
+                e.clientX >= rect.left && e.clientX <= rect.right &&
+                e.clientY >= rect.top && e.clientY <= rect.bottom
+            ) {
+                const isRight = (e.clientX - rect.left) > rect.width / 2;
+                if (isRight && node !== dragStart.node) {
+                    // 创建正式连线
+                    createDivConnection(dragStart, node, rect, document.getElementById('grid-container').getBoundingClientRect());
+                    connected = true;
+                }
+            }
+        });
+        dragLineDiv.remove();
+        dragLineDiv = null;
+        dragStart = null;
+        document.removeEventListener('mousemove', onDragLineMove);
+        document.removeEventListener('mouseup', onDragLineUp);
+    }
+
+    function createDivConnection(start, endNode, endRect, gridRect) {
+        // 不再直接创建连接线，而是调用createGlowConnection函数
+        if (start && start.node && endNode) {
+            // 使用createGlowConnection创建连接线
+            return createGlowConnection(start.node, endNode);
+        }
+        
+        // 如果无法使用createGlowConnection，则显示提示
+        console.error('无法创建连接：起点或终点节点不存在');
+        showToast('连接失败：节点信息不完整');
+        return null;
+    }
+
+    // 高亮div直线连接功能
+    let connectMode = null; // 'input' or 'output'
+    let connectNode = null;
+
+    gridContainer.addEventListener('mousedown', function(e) {
+        console.log('mousedown', e.button, e.target);
+        if (!e.target.classList.contains('node') && !e.target.closest('.node')) return;
+        const node = e.target.classList.contains('node') ? e.target : e.target.closest('.node');
+        
+        // 检查是否为灯组件
+        if (node.dataset.componentType === '灯') {
+            showToast('灯只能接收信号，不能作为连接起点！');
+            console.log('灯不能作为连接起点');
+            return;
+        }
+        
+        if (e.button === 0) { // 左键
+            connectMode = 'output';
+            connectNode = node;
+            node.classList.add('selected-output');
+            console.log('激活输出端', node);
+        }
+        // 删除右键点击设置为input模式的代码
+    });
+
+    gridContainer.addEventListener('mouseup', function(e) {
+        console.log('mouseup', e.button, e.target);
+        if (!connectMode || !connectNode) return;
+        if (!e.target.classList.contains('node') && !e.target.closest('.node')) return;
+        const targetNode = e.target.classList.contains('node') ? e.target : e.target.closest('.node');
+        if (targetNode === connectNode) return; // 不允许自连
+
+        if (connectMode === 'output') {
+            // 当前输出到目标输入（connectNode → targetNode）
+            createGlowConnection(connectNode, targetNode);
+        }
+        connectNode.classList.remove('selected-input', 'selected-output');
+        connectMode = null;
+        connectNode = null;
+    });
+
+    gridContainer.addEventListener('contextmenu', e => e.preventDefault());
+
+    function createGlowConnection(startNode, endNode) {
+        console.log('createGlowConnection called', startNode, endNode);
+        
+        // 灯不能作为起点，这是基本限制
+        if (startNode.dataset.componentType === '灯') {
+            showToast('灯只能接收信号，不能作为信号源！');
+            console.log('连接失败 - 灯不能作为起点');
+            return null;
+        }
+        
+        // 检查是否已存在相同的连接
+        const existingConnection = connections.find(conn => 
+            (conn.startNode === startNode && conn.endNode === endNode)
+        );
+        
+        if (existingConnection) {
+            console.log('连接已存在，不重复创建');
+            showToast('连接已存在');
+            return existingConnection;
+        }
+        
+        // 执行专门的连接合法性检查
+        // 灯只能作为终点，而且只能有一个输入
+        if (endNode.dataset.componentType === '灯' && connections.some(conn => conn.endNode === endNode)) {
+            showToast('灯只能有一个输入端口！');
+            console.log('连接失败 - 灯已有输入连接');
+            return null;
+        }
+        
+        // 非门输入连接数量限制（最多1个）
+        if (endNode.dataset.componentType === '非门（NOT）' && connections.some(conn => conn.endNode === endNode)) {
+            showToast('非门只能有一个输入端口！');
+            console.log('连接失败 - 非门已有输入连接');
+            return null;
+        }
+        
+        // XOR信号器输入连接数量限制（最多2个）
+        if (endNode.dataset.componentType === 'XOR信号器') {
+            const inputConnections = connections.filter(conn => conn.endNode === endNode);
+            if (inputConnections.length >= 2) {
+                showToast('XOR信号器最多只能有2个输入连接！');
+                console.log('连接失败 - XOR信号器已有2个输入连接');
+                return null;
+            }
+        }
+        
+        // 延时触发器输入连接数量限制（最多1个）
+        if (endNode.dataset.componentType === '延时触发器' && connections.some(conn => conn.endNode === endNode)) {
+            showToast('延时触发器只能有一个输入端口！');
+            console.log('连接失败 - 延时触发器已有输入连接');
+            return null;
+        }
+        
+        // 标记储存装置输入连接数量限制（最多2个）
+        if (endNode.dataset.componentType === '标记储存装置') {
+            const inputConnections = connections.filter(conn => conn.endNode === endNode);
+            if (inputConnections.length >= 2) {
+                showToast('标记储存装置最多只能有2个输入端口！');
+                console.log('连接失败 - 标记储存装置已有2个输入连接');
+                return null;
+            }
+        }
+        
+        // 分支输入连接数量限制（最多1个）
+        if (endNode.dataset.componentType === '分支（BR）' && connections.some(conn => conn.endNode === endNode)) {
+            showToast('分支只能有一个输入端口！');
+            console.log('连接失败 - 分支已有输入连接');
+            return null;
+        }
+        
+        // 开关触发器输入/输出连接数量限制
+        if (endNode.dataset.componentType === '开关触发器' && connections.some(conn => conn.endNode === endNode)) {
+            showToast('开关触发器最多只能有1个输入连接！');
+            console.log('连接失败 - 开关触发器已有输入连接');
+            return null;
+        }
+        
+        if (startNode.dataset.componentType === '开关触发器' && connections.some(conn => conn.startNode === startNode)) {
+            showToast('开关触发器最多只能有1个输出连接！');
+            console.log('连接失败 - 开关触发器已有输出连接');
+            return null;
+        }
+        
+        // 创建连接线视觉元素
+        const gridRect = gridContainer.getBoundingClientRect();
+        const startRect = startNode.getBoundingClientRect();
+        const endRect = endNode.getBoundingClientRect();
+        const x1 = startRect.left + startRect.width/2 - gridRect.left;
+        const y1 = startRect.top + startRect.height/2 - gridRect.top;
+        const x2 = endRect.left + endRect.width/2 - gridRect.left;
+        const y2 = endRect.top + endRect.height/2 - gridRect.top;
+        const dx = x2 - x1, dy = y2 - y1;
+        const length = Math.sqrt(dx*dx + dy*dy);
+        const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+        
+        // 创建连接线元素
+        const branch = document.createElement('div');
+        branch.className = 'glow-branch branch'; // 添加branch类以便识别
+        branch.style.left = `${x1}px`;
+        branch.style.top = `${y1}px`;
+        branch.style.width = `${length}px`;
+        branch.style.transform = `rotate(${angle}deg)`;
+        branch.style.height = '2px'; // 从默认的3px减小到2px
+        branch.style.backgroundColor = '#3ddad7';
+        branch.style.boxShadow = '0 0 5px #3ddad7, 0 0 10px rgba(61,218,215,0.2)'; // 减小发光范围和强度
+        branch.style.borderRadius = '1px'; // 与高度匹配
+        branch.style.zIndex = '0'; // 确保连接线在组件下层
+        branch.style.cursor = 'pointer'; // 添加指针样式，提示可点击
+        
+        // 将连接线插入到网格容器的最前面，确保它在组件下层
+        if (gridContainer.firstChild) {
+            gridContainer.insertBefore(branch, gridContainer.firstChild);
+        } else {
+        gridContainer.appendChild(branch);
+        }
+        
+        // 决定输入索引
+        let inputIndex = 0;
+        // 如果终点是与门，分配唯一inputIndex
+        if (endNode.dataset.componentType === '与门（&）') {
+            if (endNode.state && Array.isArray(endNode.state.inputValues)) {
+                // 找到第一个未被占用的位置
+                for (let i = 0; i < endNode.state.inputValues.length; i++) {
+                    if (endNode.state.inputValues[i] === undefined) {
+                        inputIndex = i;
+                        break;
+                    }
+                    // 如果都被占用，则扩展
+                    if (i === endNode.state.inputValues.length - 1) {
+                        endNode.state.inputValues.push(undefined);
+                        inputIndex = endNode.state.inputValues.length - 1;
+                    }
+                }
+            }
+        }
+        
+        // 创建连接对象，记录inputIndex
+        const connection = {
+            element: branch,
+            startNode: startNode,
+            endNode: endNode,
+            inputIndex: (endNode.dataset.componentType === '与门（&）') ? inputIndex : 0
+        };
+        
+        // 更新连接位置
+        updateConnectionPosition(connection);
+        connections.push(connection);
+            showToast('连接成功');
+            
+        // 连接建立后，立即传递起始节点的信号状态到终点节点
+        if (startNode.state && endNode.state) {
+            const signalValue = startNode.state.outputValues[0];
+            console.log(`连接建立: ${startNode.dataset.componentType} -> ${endNode.dataset.componentType}, 初始信号值: ${signalValue}`);
+            
+            // 根据节点类型更新输入值
+            if (endNode.dataset.componentType === '与门（&）') {
+                // 如果起始节点是开关触发器，需要根据开关状态决定传递的信号值
+                if (startNode.dataset.componentType === '开关触发器') {
+                    const isActive = startNode.classList.contains('active');
+                    endNode.state.inputValues[inputIndex] = isActive ? 1 : 0;
+                    console.log(`开关触发器 -> 与门: 传递信号 ${isActive ? 1 : 0}`);
+                    
+                    // 更新开关和与门的信号指示器
+                    updateSignalIndicator(startNode, isActive ? 1 : 0);
+                    
+                    // 处理与门逻辑后更新其信号指示器
+                    processNodeLogic(endNode);
+                } else {
+                    endNode.state.inputValues[inputIndex] = signalValue;
+                    
+                    // 更新起始节点和与门的信号指示器
+                    updateSignalIndicator(startNode, signalValue);
+                    
+                    // 处理与门逻辑后更新其信号指示器
+                        processNodeLogic(endNode);
+                    }
+            } else if (endNode.dataset.componentType === '标记储存装置') {
+                // 不再根据result.inputIndex确定控制端和输入端
+                // 只需传递信号，标记储存装置的process函数会根据信号先后顺序识别控制端和输入端
+                if (startNode.dataset.componentType === '开关触发器') {
+                    const isActive = startNode.classList.contains('active');
+                    // 根据开关状态设置输入值
+                    endNode.state.inputValues[inputIndex] = isActive ? 1 : 0;
+                    console.log(`开关触发器 -> 标记储存装置: 传递信号 ${isActive ? 1 : 0}`);
+                    
+                    // 更新开关的信号指示器
+                    updateSignalIndicator(startNode, isActive ? 1 : 0);
+                } else {
+                    // 传递其他组件的信号
+                    endNode.state.inputValues[inputIndex] = signalValue;
+                    console.log(`${startNode.dataset.componentType} -> 标记储存装置: 传递信号 ${signalValue}`);
+                    
+                    // 更新起始节点的信号指示器
+                    updateSignalIndicator(startNode, signalValue);
+                }
+            } else {
+                // 如果起始节点是开关触发器，需要根据开关状态决定传递的信号值
+                if (startNode.dataset.componentType === '开关触发器') {
+                    const isActive = startNode.classList.contains('active');
+                    endNode.state.inputValues[0] = isActive ? 1 : 0;
+                    console.log(`开关触发器 -> ${endNode.dataset.componentType}: 传递信号 ${isActive ? 1 : 0}`);
+                    
+                    // 更新开关的信号指示器
+                    updateSignalIndicator(startNode, isActive ? 1 : 0);
+                } else {
+                    endNode.state.inputValues[0] = signalValue;
+                    
+                    // 更新起始节点的信号指示器
+                    updateSignalIndicator(startNode, signalValue);
+                }
+            }
+            
+            // 处理接收节点的逻辑
+            processNodeLogic(endNode);
+            
+            // 如果起始节点是开关且处于激活状态，确保信号传播
+            if (startNode.dataset.componentType === '开关触发器') {
+                if (startNode.classList.contains('active')) {
+                    console.log(`开关触发器处于打开状态，传播信号1`);
+                    propagateSignal(startNode, new Set());
+        } else {
+                    console.log(`开关触发器处于关闭状态，不传播信号`);
+                }
+            } else {
+                // 其他类型的节点，正常传播信号
+                propagateSignal(startNode, new Set());
+            }
+        }
+        
+        // 连接成功后记录电路状态
+        console.log(`成功创建连接: [${startNode.dataset.componentType}] -> [${endNode.dataset.componentType}]`);
+        logCircuitState();
+        
+        // 自动退出连线模式
+        branchMode = false;
+        connectingStart = null;
+        gridContainer.style.cursor = 'default';
+        document.body.classList.remove('connection-mode');
+        setCtrlIconActive(false);
+        document.querySelectorAll('.connecting-start').forEach(node => {
+            node.classList.remove('connecting-start');
+        });
+        document.querySelectorAll('.selected-input, .selected-output').forEach(node => {
+            node.classList.remove('selected-input', 'selected-output');
+        });
+        
+        return connection;
+    }
+
+    // Toast弹窗函数
+    function showToast(message) {
+        let toast = document.getElementById('custom-toast');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'custom-toast';
+            toast.style.position = 'fixed';
+            toast.style.left = '50%'; // 水平居中
+            toast.style.top = '15%'; // 靠近屏幕上方
+            toast.style.transform = 'translateX(-50%)'; // 确保水平居中
+            toast.style.zIndex = 9999;
+            toast.style.background = 'rgba(40, 60, 80, 0.95)';
+            toast.style.color = '#fff';
+            toast.style.padding = '16px 32px';
+            toast.style.borderRadius = '12px';
+            toast.style.boxShadow = '0 4px 24px rgba(0,0,0,0.18)';
+            toast.style.fontSize = '18px';
+            toast.style.opacity = '0';
+            toast.style.transition = 'opacity 0.3s';
+            document.body.appendChild(toast);
+        }
+        toast.textContent = message;
+        toast.style.opacity = '1';
+        clearTimeout(toast._timer);
+        toast._timer = setTimeout(() => {
+            toast.style.opacity = '0';
+        }, 1800);
+    }
+
+    // 在页面左上角添加连线模式图标
+    function addCtrlIcon() {
+        let icon = document.getElementById('ctrl-connection-icon');
+        if (!icon) {
+            icon = document.createElement('div');
+            icon.id = 'ctrl-connection-icon';
+            icon.style.position = 'fixed';
+            icon.style.left = '32px';
+            icon.style.top = '32px';
+            icon.style.width = '56px';
+            icon.style.height = '56px';
+            icon.style.borderRadius = '16px';
+            icon.style.background = 'rgba(80,80,80,0.7)';
+            icon.style.display = 'flex';
+            icon.style.alignItems = 'center';
+            icon.style.justifyContent = 'center';
+            icon.style.boxShadow = '0 2px 12px rgba(0,0,0,0.18)';
+            icon.style.zIndex = 9999;
+            icon.style.transition = 'background 0.2s, color 0.2s';
+            icon.innerHTML = '<svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="6" y="6" width="24" height="24" rx="8" fill="#bbb"/><text x="18" y="25" text-anchor="middle" font-size="18" fill="#fff" font-family="Arial">连</text></svg>';
+            document.body.appendChild(icon);
+        }
+        return icon;
+    }
+    addCtrlIcon();
+
+    // Ctrl键按下/松开时高亮图标
+    function setCtrlIconActive(active) {
+        const icon = document.getElementById('ctrl-connection-icon');
+        if (!icon) return;
+        if (active) {
+            icon.style.background = 'rgba(220,40,40,0.92)';
+            icon.innerHTML = '<svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="6" y="6" width="24" height="24" rx="8" fill="#e53935"/><text x="18" y="25" text-anchor="middle" font-size="18" fill="#fff" font-family="Arial">连</text></svg>';
+        } else {
+            icon.style.background = 'rgba(80,80,80,0.7)';
+            icon.innerHTML = '<svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="6" y="6" width="24" height="24" rx="8" fill="#bbb"/><text x="18" y="25" text-anchor="middle" font-size="18" fill="#fff" font-family="Arial">连</text></svg>';
+        }
+    }
+
+    // 连线成功后自动退出连线模式
+    createConnection = function(startNode, endNode) {
+        // 先检查是否有灯作为起点，这种情况禁止
+        if (startNode.dataset.componentType === '灯') {
+            showToast('灯只能接收信号，不能作为信号源！');
+            console.log('创建连接失败: 灯不能作为连接起点');
+            return null;
+        }
+        
+        // 手动确定端口类型
+        let startType = 'unknown';
+        let endType = 'unknown';
+        
+        // 确定起点类型
+        const startComponentType = startNode.dataset.componentType;
+        if (startComponentType === '非门（NOT）' || 
+            startComponentType === '分支（BR）' || 
+            startComponentType === '与门（&）' || 
+            startComponentType === 'XOR信号器' || 
+            startComponentType === '或门（OR）') {
+            startType = 'output';
+        } else if (startComponentType === '灯') {
+            startType = 'input';
+        } else if (startComponentType === '延时触发器' || 
+                   startComponentType === '标记储存装置' ||
+                   startComponentType === '开关触发器') { // 开关触发器可以作为输入和输出
+            startType = 'both';
+        }
+        
+        // 确定终点类型
+        const endComponentType = endNode.dataset.componentType;
+        if (endComponentType === '非门（NOT）' || 
+            endComponentType === '分支（BR）' || 
+            endComponentType === '与门（&）' || 
+            endComponentType === 'XOR信号器' || 
+            endComponentType === '或门（OR）') {
+            endType = 'output';
+        } else if (endComponentType === '灯') {
+            endType = 'input';
+        } else if (endComponentType === '延时触发器' || 
+                   endComponentType === '标记储存装置' ||
+                   endComponentType === '开关触发器') { // 开关触发器可以作为输入和输出
+            endType = 'both';
+        }
+        
+        // 处理'both'类型的端口
+        if (startType === 'both') {
+            // 如果终点是输入端，则起点作为输出端
+            if (endType === 'input') {
+                startType = 'output';
+            }
+            // 如果终点是输出端，则起点作为输入端
+            else if (endType === 'output') {
+                startType = 'input';
+            }
+            // 如果终点也是'both'，默认起点作为输出端，终点作为输入端
+            else if (endType === 'both') {
+                startType = 'output';
+                endType = 'input';
+            }
+        }
+        else if (endType === 'both') {
+            // 如果起点是输入端，则终点作为输出端
+            if (startType === 'input') {
+                endType = 'output';
+            }
+            // 如果起点是输出端，则终点作为输入端
+            else if (startType === 'output') {
+                endType = 'input';
+            }
+        }
+        
+        // 特殊处理：允许从与门连接到开关触发器
+        if (endComponentType === '开关触发器' && startType === 'output') {
+            endType = 'input';
+            console.log('允许连接到开关触发器');
+        }
+        
+        // 检查连接是否合法：输出->输入
+        if (startType !== 'output' || endType !== 'input') {
+            showToast('连接必须从输出端连接到输入端！');
+            console.log(`连接失败: ${startComponentType}(${startType}) -> ${endComponentType}(${endType})`);
+            return null;
+        }
+        
+        // 禁止两个灯之间相互连接
+        if (startComponentType === '灯' && endComponentType === '灯') {
+            showToast('灯只能接收信号，不能互相连接！');
+            return null;
+        }
+        
+        // 端口类型调整后再判断灯的输入端口
+        if (endComponentType === '灯') {
+            if (connections.some(conn => conn.endNode === endNode)) {
+                showToast('灯只能有一个输入端口！');
+                return null;
+            }
+        }
+        // 非门输入连接数量限制（最多1个）
+        if (endComponentType === '非门（NOT）') {
+            if (connections.some(conn => conn.endNode === endNode)) {
+                showToast('非门只能有一个输入端口！');
+                return null;
+            }
+        }
+        // XOR信号器输入连接数量限制（最多2个）
+        if (endComponentType === 'XOR信号器') {
+            const inputConnections = connections.filter(conn => conn.endNode === endNode);
+            if (inputConnections.length >= 2) {
+                showToast('XOR信号器最多只能有2个输入连接！');
+                return null;
+            }
+        }
+        // 延时触发器输入连接数量限制（最多1个）
+        if (endComponentType === '延时触发器') {
+            if (connections.some(conn => conn.endNode === endNode)) {
+                showToast('延时触发器只能有一个输入端口！');
+                return null;
+            }
+        }
+        // 标记储存装置输入连接数量限制（最多2个）
+        if (endComponentType === '标记储存装置') {
+            const inputConnections = connections.filter(conn => conn.endNode === endNode);
+            if (inputConnections.length >= 2) {
+                showToast('标记储存装置最多只能有2个输入端口！');
+                return null;
+            }
+        }
+        // 分支输入连接数量限制（最多1个）
+        if (endComponentType === '分支（BR）') {
+            if (connections.some(conn => conn.endNode === endNode)) {
+                showToast('分支只能有一个输入端口！');
+                return null;
+            }
+        }
+        // 开关触发器输入连接数量限制（最多1个）
+        if (endComponentType === '开关触发器') {
+            const inputConnections = connections.filter(conn => conn.endNode === endNode);
+            if (inputConnections.length >= 1) {
+                showToast('开关触发器最多只能有1个输入连接！');
+                return null;
+            }
+        }
+        // 开关触发器输出连接数量限制（最多1个）
+        if (startComponentType === '开关触发器') {
+            const outputConnections = connections.filter(conn => conn.startNode === startNode);
+            if (outputConnections.length >= 1) {
+                showToast('开关触发器最多只能有1个输出连接！');
+                return null;
+            }
+        }
+        
+        // 检查是否已存在相同的连接
+        if (connections.some(conn => 
+            (conn.startNode === startNode && conn.endNode === endNode) ||
+            (conn.startNode === endNode && conn.endNode === startNode))) {
+            console.log('连接已存在!');
+            showToast('连接已存在');
+            return null;
+        }
+        
+        let inputIndex = 0;
+        // 如果终点是与门，分配唯一inputIndex
+        if (endComponentType === '与门（&）') {
+            if (endNode.state && Array.isArray(endNode.state.inputValues)) {
+                // 找到第一个未被占用的位置
+                for (let i = 0; i < endNode.state.inputValues.length; i++) {
+                    if (endNode.state.inputValues[i] === undefined) {
+                        inputIndex = i;
+                        break;
+                    }
+                    // 如果都被占用，则扩展
+                    if (i === endNode.state.inputValues.length - 1) {
+                        endNode.state.inputValues.push(undefined);
+                        inputIndex = endNode.state.inputValues.length - 1;
+                    }
+                }
+            }
+        }
+        
+        // 创建连接线元素
+        const line = document.createElement('div');
+        line.className = 'branch active';
+        line.style.position = 'absolute';
+        line.style.height = '2px'; // 从3px减小到2px
+        line.style.transformOrigin = 'left center';
+        line.style.backgroundColor = '#3ddad7';
+        line.style.boxShadow = '0 0 5px #3ddad7, 0 0 10px rgba(61,218,215,0.2)'; // 减小发光范围和强度
+        line.style.borderRadius = '1px'; // 与高度匹配
+        line.style.zIndex = '0';
+        
+        const firstChild = gridContainer.firstChild;
+        if (firstChild) {
+            gridContainer.insertBefore(line, firstChild);
+        } else {
+            gridContainer.appendChild(line);
+        }
+        
+        // 创建连接对象，记录inputIndex
+        const connection = {
+            element: line,
+            startNode: startNode,
+            endNode: endNode,
+            inputIndex: (endComponentType === '与门（&）') ? inputIndex : 0
+        };
+        
+        updateConnectionPosition(connection);
+        connections.push(connection);
+        showToast('连接成功');
+        
+        // 连接建立后，立即传递起始节点的信号状态到终点节点
+        if (startNode.state && endNode.state) {
+            const signalValue = startNode.state.outputValues[0];
+            console.log(`连接建立: ${startComponentType} -> ${endComponentType}, 初始信号值: ${signalValue}`);
+            
+            // 根据节点类型更新输入值
+            if (endComponentType === '与门（&）') {
+                // 如果起始节点是开关触发器，需要根据开关状态决定传递的信号值
+                if (startComponentType === '开关触发器') {
+                    const isActive = startNode.classList.contains('active');
+                    endNode.state.inputValues[inputIndex] = isActive ? 1 : 0;
+                    console.log(`开关触发器 -> 与门: 传递信号 ${isActive ? 1 : 0}`);
+                    
+                    // 更新开关和与门的信号指示器
+                    updateSignalIndicator(startNode, isActive ? 1 : 0);
+                    
+                    // 处理与门逻辑后更新其信号指示器
+                    processNodeLogic(endNode);
+                } else {
+                    endNode.state.inputValues[inputIndex] = signalValue;
+                    
+                    // 更新起始节点和与门的信号指示器
+                    updateSignalIndicator(startNode, signalValue);
+                    
+                    // 处理与门逻辑后更新其信号指示器
+                    processNodeLogic(endNode);
+                }
+            } else if (endComponentType === '标记储存装置') {
+                // 不再根据result.inputIndex确定控制端和输入端
+                // 只需传递信号，标记储存装置的process函数会根据信号先后顺序识别控制端和输入端
+                if (startComponentType === '开关触发器') {
+                    const isActive = startNode.classList.contains('active');
+                    // 根据开关状态设置输入值
+                    endNode.state.inputValues[inputIndex] = isActive ? 1 : 0;
+                    console.log(`开关触发器 -> 标记储存装置: 传递信号 ${isActive ? 1 : 0}`);
+                    
+                    // 更新开关的信号指示器
+                    updateSignalIndicator(startNode, isActive ? 1 : 0);
+                } else {
+                    // 传递其他组件的信号
+                    endNode.state.inputValues[inputIndex] = signalValue;
+                    console.log(`${startComponentType} -> 标记储存装置: 传递信号 ${signalValue}`);
+                    
+                    // 更新起始节点的信号指示器
+                    updateSignalIndicator(startNode, signalValue);
+                }
+            } else {
+                // 如果起始节点是开关触发器，需要根据开关状态决定传递的信号值
+                if (startComponentType === '开关触发器') {
+                    const isActive = startNode.classList.contains('active');
+                    endNode.state.inputValues[0] = isActive ? 1 : 0;
+                    console.log(`开关触发器 -> ${endComponentType}: 传递信号 ${isActive ? 1 : 0}`);
+                    
+                    // 更新开关的信号指示器
+                    updateSignalIndicator(startNode, isActive ? 1 : 0);
+                } else {
+                    endNode.state.inputValues[0] = signalValue;
+                    
+                    // 更新起始节点的信号指示器
+                    updateSignalIndicator(startNode, signalValue);
+                }
+            }
+            
+            // 处理接收节点的逻辑
+            processNodeLogic(endNode);
+            
+            // 如果起始节点是开关且处于激活状态，确保信号传播
+            if (startComponentType === '开关触发器') {
+                if (startNode.classList.contains('active')) {
+                    console.log(`开关触发器处于打开状态，传播信号1`);
+                    propagateSignal(startNode, new Set());
+                } else {
+                    console.log(`开关触发器处于关闭状态，不传播信号`);
+                }
+            } else {
+                // 其他类型的节点，正常传播信号
+                propagateSignal(startNode, new Set());
+            }
+        }
+        
+        // 连接成功后记录电路状态
+        console.log(`成功创建连接: [${startComponentType}] -> [${endComponentType}]`);
+        logCircuitState();
+        
+            // 自动退出连线模式
+            branchMode = false;
+            connectingStart = null;
+            gridContainer.style.cursor = 'default';
+            document.body.classList.remove('connection-mode');
+            setCtrlIconActive(false);
+            document.querySelectorAll('.connecting-start').forEach(node => {
+                node.classList.remove('connecting-start');
+            });
+            document.querySelectorAll('.selected-input, .selected-output').forEach(node => {
+                node.classList.remove('selected-input', 'selected-output');
+            });
+        
+        return connection;
+    };
+
+    // 添加连接线点击事件，实现取消连线功能
+    function setupConnectionRemoval() {
+        // 为所有连接线添加点击事件
+        document.addEventListener('click', function(e) {
+            // 检查是否点击了连接线
+            if (e.target.classList.contains('branch') || 
+                e.target.classList.contains('glow-branch') || 
+                e.target.classList.contains('branch-path')) {
+                
+                // 找到对应的连接对象
+                const clickedElement = e.target;
+                const connectionIndex = connections.findIndex(conn => conn.element === clickedElement);
+                
+                if (connectionIndex !== -1) {
+                    // 找到了连接对象
+                    const connection = connections[connectionIndex];
+                    
+                    // 从DOM中移除连接线
+                    connection.element.remove();
+                    
+                    // 从连接数组中移除
+                    connections.splice(connectionIndex, 1);
+                    
+                    // 显示提示
+                    showToast('连接已删除');
+                    
+                    console.log('删除连接:', connectionIndex);
+                }
+            }
+        });
+    }
+    
+    // 初始化连接删除功能
+    setupConnectionRemoval();
+
+    // 修改node双击事件监听，提高灵敏度
+    function setupNodeEvents() {
+        // 为所有节点添加双击事件，提高灵敏度
+        const handleNodeDoubleClick = (node) => {
+            if(node.dataset.componentType === '开关触发器') {
+                toggleSwitch(node);
+                return true;
+            } else if(node.dataset.componentType === '标记储存装置') {
+                resetStorage(node);
+                return true;
+            }
+            return false;
+        };
+        
+        // 使用单击加时间戳模拟双击，提高响应速度
+        document.addEventListener('click', function(e) {
+            const node = e.target.closest('.node');
+            if (!node) return;
+            
+            // 点击灯组件直接返回，不做处理
+            if (node.dataset.componentType === '灯') return;
+            
+            const now = Date.now();
+            if (!node.lastClickTime) {
+                node.lastClickTime = now;
+                return;
+            }
+            
+            // 如果两次点击间隔小于300ms，认为是双击
+            if (now - node.lastClickTime < 300) {
+                handleNodeDoubleClick(node);
+                e.stopPropagation(); // 阻止事件冒泡
+                node.lastClickTime = 0; // 重置点击时间，避免连续触发
+            } else {
+                node.lastClickTime = now;
+            }
+        });
+        
+        // 添加右键菜单事件处理，用于设置延时触发器的延时时间
+        document.addEventListener('contextmenu', function(e) {
+            const node = e.target.closest('.node');
+            if (!node) return;
+            
+            // 只对延时触发器节点处理右键事件
+            if (node.dataset.componentType === '延时触发器') {
+                e.preventDefault(); // 阻止默认右键菜单
+                
+                // 如果之前有其他输入框，先移除
+                const existingDialog = document.getElementById('delay-time-dialog');
+                if (existingDialog) {
+                    existingDialog.remove();
+                }
+                
+                // 显示延时设置输入框
+                showDelayTimeInput(node, e.clientX, e.clientY);
+            }
+        });
+    }
+
+    // 初始化节点事件处理
+    setupNodeEvents();
+
+    // 添加一个新函数用于更新信号指示器
+    function updateSignalIndicator(node, value) {
+        if (!node || !node.signalIndicator) return;
+        
+        // 更新信号指示器文本
+        node.signalIndicator.textContent = value ? '1' : '0';
+        
+        // 根据信号值更新指示器样式
+        if (value) {
+            node.signalIndicator.style.backgroundColor = 'rgba(0, 128, 0, 0.7)'; // 绿色背景表示1
+            node.signalIndicator.style.boxShadow = '0 0 5px rgba(0, 255, 0, 0.5)'; // 发光效果
+        } else {
+            node.signalIndicator.style.backgroundColor = 'rgba(0, 0, 0, 0.6)'; // 黑色背景表示0
+            node.signalIndicator.style.boxShadow = 'none';
+        }
+    }
+
+    // 在关键事件处记录电路状态
+    document.addEventListener('node-move', function(e) {
+        console.log(`节点移动: ${e.detail.node.dataset.componentType}`);
+        logCircuitState();
+    });
+
+    // 在脚本最后添加按钮，触发手动记录电路状态
+    function addDebugButton() {
+        const debugBtn = document.createElement('button');
+        debugBtn.textContent = '调试电路';
+        debugBtn.style.position = 'fixed';
+        debugBtn.style.bottom = '20px';
+        debugBtn.style.right = '20px';
+        debugBtn.style.padding = '8px 12px';
+        debugBtn.style.backgroundColor = '#6200ea';
+        debugBtn.style.color = 'white';
+        debugBtn.style.border = 'none';
+        debugBtn.style.borderRadius = '4px';
+        debugBtn.style.cursor = 'pointer';
+        debugBtn.style.zIndex = '1000';
+        
+        debugBtn.onclick = function() {
+            console.log('===== 手动触发电路调试 =====');
+            logCircuitState();
+            
+            // 检查潜在问题
+            const andGates = nodes.filter(node => node.dataset.componentType === '与门（&）');
+            andGates.forEach((gate, index) => {
+                const inputs = gate.state ? gate.state.inputValues : [];
+                const outputs = gate.state ? gate.state.outputValues : [];
+                console.log(`检查与门${index}: 输入=[${inputs.join(',')}], 输出=${outputs[0]}`);
+                
+                // 判断与门逻辑是否正确
+                const validInputs = inputs.filter(v => v !== undefined);
+                const expectedOutput = validInputs.length > 0 && validInputs.every(v => v === 1) ? 1 : 0;
+                
+                if (outputs[0] !== expectedOutput) {
+                    console.log(`警告: 与门${index}输出值不正确! 应为${expectedOutput}, 实际为${outputs[0]}`);
+                } else {
+                    console.log(`与门${index}输出正确`);
+                }
+            });
+        };
+        
+        document.body.appendChild(debugBtn);
+    }
+
+    // 添加调试按钮
+    setTimeout(addDebugButton, 1000);
+
+    // 创建延时时间输入对话框
+    function showDelayTimeInput(node, x, y) {
+        // 创建对话框容器
+        const dialog = document.createElement('div');
+        dialog.id = 'delay-time-dialog';
+        dialog.style.position = 'fixed';
+        dialog.style.left = `${x}px`;
+        dialog.style.top = `${y}px`;
+        dialog.style.padding = '10px';
+        dialog.style.backgroundColor = 'rgba(30, 30, 30, 0.9)';
+        dialog.style.border = '1px solid #555';
+        dialog.style.borderRadius = '5px';
+        dialog.style.boxShadow = '0 0 10px rgba(0, 0, 0, 0.5)';
+        dialog.style.zIndex = '1001';
+        dialog.style.display = 'flex';
+        dialog.style.flexDirection = 'column';
+        dialog.style.gap = '8px';
+        
+        // 创建标题
+        const title = document.createElement('div');
+        title.textContent = '设置延时时间（秒）';
+        title.style.color = 'white';
+        title.style.fontWeight = 'bold';
+        title.style.marginBottom = '5px';
+        
+        // 当前设置时间文本显示
+        const currentTime = document.createElement('div');
+        currentTime.textContent = `当前设置: ${node.delayTime || 1} 秒`;
+        currentTime.style.color = '#aaa';
+        currentTime.style.fontSize = '12px';
+        currentTime.style.marginBottom = '5px';
+        
+        // 创建输入框
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.min = '0.1';
+        input.step = '0.1';
+        input.value = node.delayTime || 1;
+        input.style.padding = '5px';
+        input.style.width = '100%';
+        input.style.boxSizing = 'border-box';
+        input.style.backgroundColor = '#333';
+        input.style.color = 'white';
+        input.style.border = '1px solid #555';
+        input.style.borderRadius = '3px';
+        
+        // 创建按钮容器
+        const buttons = document.createElement('div');
+        buttons.style.display = 'flex';
+        buttons.style.justifyContent = 'space-between';
+        buttons.style.marginTop = '5px';
+        
+        // 创建确认按钮
+        const confirmBtn = document.createElement('button');
+        confirmBtn.textContent = '确认';
+        confirmBtn.style.padding = '5px 10px';
+        confirmBtn.style.backgroundColor = '#4c8bf5';
+        confirmBtn.style.color = 'white';
+        confirmBtn.style.border = 'none';
+        confirmBtn.style.borderRadius = '3px';
+        confirmBtn.style.cursor = 'pointer';
+        confirmBtn.style.marginRight = '5px';
+        confirmBtn.onclick = function() {
+            // 获取输入值，并确保它是有效的正数
+            const value = parseFloat(input.value);
+            if (value > 0) {
+                // 保存延时时间到节点状态
+                node.delayTime = value;
+                showToast(`延时触发器设置为 ${value} 秒`);
+                console.log(`延时触发器延时时间设置为 ${value} 秒`);
+            } else {
+                showToast('延时时间必须大于0');
+            }
+            dialog.remove();
+        };
+        
+        // 创建取消按钮
+        const cancelBtn = document.createElement('button');
+        cancelBtn.textContent = '取消';
+        cancelBtn.style.padding = '5px 10px';
+        cancelBtn.style.backgroundColor = '#555';
+        cancelBtn.style.color = 'white';
+        cancelBtn.style.border = 'none';
+        cancelBtn.style.borderRadius = '3px';
+        cancelBtn.style.cursor = 'pointer';
+        cancelBtn.onclick = function() {
+            dialog.remove();
+        };
+        
+        // 组装按钮
+        buttons.appendChild(confirmBtn);
+        buttons.appendChild(cancelBtn);
+        
+        // 组装对话框
+        dialog.appendChild(title);
+        dialog.appendChild(currentTime);
+        dialog.appendChild(input);
+        dialog.appendChild(buttons);
+        
+        // 添加到文档
+        document.body.appendChild(dialog);
+        
+        // 设置焦点到输入框
+        input.focus();
+        input.select();
+        
+        // 点击其他地方关闭对话框
+        function closeOnOutsideClick(e) {
+            if (!dialog.contains(e.target)) {
+                dialog.remove();
+                document.removeEventListener('mousedown', closeOnOutsideClick);
+            }
+        }
+        
+        // 延迟添加事件监听，避免立即触发
+        setTimeout(() => {
+            document.addEventListener('mousedown', closeOnOutsideClick);
+        }, 100);
+    }
+
+    function getPortType(node) {
+        if (!node || !node.dataset || !node.dataset.componentType) return 'unknown';
+        
+        const componentType = node.dataset.componentType;
+        
+        // 只有输出的组件
+        if (componentType === '非门（NOT）' || 
+            componentType === '分支（BR）' || 
+            componentType === '与门（&）' || 
+            componentType === 'XOR信号器' || 
+            componentType === '或门（OR）' ||
+            componentType === '开关触发器') return 'output';
+        
+        // 只有输入的组件
+        if (componentType === '灯') return 'input';
+        
+        // 既有输入又有输出的组件
+        if (componentType === '延时触发器' || 
+            componentType === '标记储存装置') {
+            return 'both';
+        }
+        
+        return 'unknown';
+    }
+
+    // 添加清空按钮到左上角
+    function addClearButton() {
+        let clearIcon = document.getElementById('clear-circuit-icon');
+        if (!clearIcon) {
+            clearIcon = document.createElement('div');
+            clearIcon.id = 'clear-circuit-icon';
+            clearIcon.style.position = 'fixed';
+            clearIcon.style.left = '32px';
+            clearIcon.style.top = '100px'; // 位于连线图标下方
+            clearIcon.style.width = '56px';
+            clearIcon.style.height = '56px';
+            clearIcon.style.borderRadius = '16px';
+            clearIcon.style.background = 'rgba(200,60,60,0.7)';
+            clearIcon.style.display = 'flex';
+            clearIcon.style.alignItems = 'center';
+            clearIcon.style.justifyContent = 'center';
+            clearIcon.style.boxShadow = '0 2px 12px rgba(0,0,0,0.18)';
+            clearIcon.style.zIndex = 9999;
+            clearIcon.style.transition = 'background 0.2s, transform 0.2s';
+            clearIcon.style.cursor = 'pointer';
+            clearIcon.innerHTML = '<svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="6" y="6" width="24" height="24" rx="8" fill="#ff6b6b"/><text x="18" y="25" text-anchor="middle" font-size="18" fill="#fff" font-family="Arial">清</text></svg>';
+            
+            // 添加悬停效果
+            clearIcon.addEventListener('mouseover', function() {
+                this.style.background = 'rgba(220,40,40,0.85)';
+                this.style.transform = 'scale(1.05)';
+            });
+            
+            clearIcon.addEventListener('mouseout', function() {
+                this.style.background = 'rgba(200,60,60,0.7)';
+                this.style.transform = 'scale(1)';
+            });
+            
+            // 添加点击事件 - 与clearBtn相同的功能
+            clearIcon.addEventListener('click', function() {
+                // 清除节点
+                nodes.forEach(node => node.remove());
+                nodes = [];
+                
+                // 清除连接线
+                connections.forEach(conn => conn.element.remove());
+                connections = [];
+                
+                // 重置状态
+                nodeMode = false;
+                branchMode = false;
+                
+                if (connectingStart) {
+                    connectingStart.classList.remove('connecting-start');
+                    connectingStart = null;
+                }
+                
+                addNodeBtn.classList.remove('active');
+                addBranchBtn.classList.remove('active');
+                
+                // 显示成功提示
+                showToast('已清空所有电路元素');
+                console.log('清空所有元素');
+            });
+            
+            document.body.appendChild(clearIcon);
+        }
+        return clearIcon;
+    }
+    
+    // 初始化清空按钮
+    setTimeout(addClearButton, 500);
+
+    // 监听鼠标按下事件，用于启动平移功能
+    gridContainer.addEventListener('mousedown', function(e) {
+        // 避免与其他事件冲突，仅在按住空白区域或右键时激活平移
+        const isEmptyArea = e.target === gridContainer || e.target === gridBg;
+        const isRightClick = e.button === 2; // 右键点击
+        
+        if ((isEmptyArea || isRightClick) && !nodeMode && !branchMode) {
+            isPanning = true;
+            panStart = { x: e.clientX, y: e.clientY };
+            lastPan = { x: panOffset.x, y: panOffset.y };
+            gridContainer.style.cursor = 'grabbing';
+            e.preventDefault(); // 防止文本选择等默认行为
+        }
+    });
+    
+    // 监听鼠标抬起事件，结束平移
+    document.addEventListener('mouseup', function(e) {
+        if (isPanning) {
+            isPanning = false;
+            gridContainer.style.cursor = 'default';
+        }
+    });
+    
+    // 实现鼠标滚轮缩放功能
+    let gridScale = 1; // 初始缩放比例
+    const MIN_SCALE = 0.5; // 最小缩放
+    const MAX_SCALE = 2.0; // 最大缩放
+    
+    gridContainer.addEventListener('wheel', function(e) {
+        // 阻止默认滚动行为
+        e.preventDefault();
+        
+        // 计算缩放因子 (缩小为0.95, 放大为1.05)
+        const scaleFactor = e.deltaY > 0 ? 0.95 : 1.05;
+        
+        // 应用缩放限制
+        const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, gridScale * scaleFactor));
+        
+        // 如果达到极限值则不进行缩放
+        if (newScale === gridScale) return;
+        
+        // 获取鼠标在网格中的位置（相对于画布原点）
+        const mouseX = e.clientX - gridContainer.getBoundingClientRect().left - panOffset.x;
+        const mouseY = e.clientY - gridContainer.getBoundingClientRect().top - panOffset.y;
+        
+        // 计算新的平移偏移量，使鼠标位置保持不变
+        const newPanOffsetX = panOffset.x - mouseX * (newScale - gridScale) / newScale;
+        const newPanOffsetY = panOffset.y - mouseY * (newScale - gridScale) / newScale;
+        
+        // 更新缩放比例
+        gridScale = newScale;
+        
+        // 更新平移偏移
+        panOffset.x = newPanOffsetX;
+        panOffset.y = newPanOffsetY;
+        
+        // 应用变换
+        applyTransform();
+        
+        // 更新背景网格大小
+        updateGridSize();
+    });
+    
+    // 应用变换到网格和所有元素
+    function applyTransform() {
+        // 应用到容器
+        gridContainer.style.transform = `scale(${gridScale})`;
+        
+        // 更新元素位置
+        updateNodesAndBranches();
+    }
+    
+    // 更新网格大小
+    function updateGridSize() {
+        const newGridSize = Math.round(gridSize * gridScale);
+        document.documentElement.style.setProperty('--transformed-grid-size', `${newGridSize}px`);
+        
+        // 更新背景网格
+        if (gridBg) {
+            gridBg.style.backgroundSize = `${newGridSize}px ${newGridSize}px`;
+            gridBg.style.backgroundPosition = `${panOffset.x % newGridSize}px ${panOffset.y % newGridSize}px`;
+        }
+    }
+    
+    // 增强updatePan函数，包含缩放处理
+    function updatePan() {
+        // 网格背景平移
+        if (gridBg) {
+            const transformedGridSize = Math.round(gridSize * gridScale);
+            gridBg.style.backgroundPosition = `${panOffset.x % transformedGridSize}px ${panOffset.y % transformedGridSize}px`;
+        }
+        
+        // 同步全局panOffset变量
+        window.panOffset = panOffset;
+        
+        // 发送pan-update事件，通知connection.js
+        document.dispatchEvent(new CustomEvent('pan-update', {
+            detail: { 
+                panOffset: panOffset,
+                scale: gridScale
+            }
+        }));
+        
+        // 打印调试信息
+        console.log(`画布偏移更新: x=${panOffset.x}, y=${panOffset.y}, scale=${gridScale}`);
+        
+        updateNodesAndBranches();
+    }
+    
+    // 增强updateNodesAndBranches函数，考虑缩放因素
+    function updateNodesAndBranches() {
+        // 更新节点位置
+        nodes.forEach(node => {
+            // 计算应用了平移和缩放后的位置
+            node.style.left = `${parseInt(node.dataset.x) + panOffset.x}px`;
+            node.style.top = `${parseInt(node.dataset.y) + panOffset.y}px`;
+            node.style.zIndex = '1'; // 确保节点在连接线上层
+        });
+        
+        // 更新所有连接线
+        connections.forEach(conn => {
+            updateConnectionPosition(conn);
+        });
+        
+        // 确保连接线在节点下方
+        connections.forEach(conn => {
+            if (conn.element && conn.element.parentNode === gridContainer) {
+                // 将连接线移动到DOM树的最前面，确保它在组件下层
+                if (gridContainer.firstChild && gridContainer.firstChild !== conn.element) {
+                    gridContainer.insertBefore(conn.element, gridContainer.firstChild);
+                }
+            }
+        });
+    }
+    
+    // 初始化网格大小变量
+    document.documentElement.style.setProperty('--transformed-grid-size', `${gridSize}px`);
+    updateGridSize();
+}); 

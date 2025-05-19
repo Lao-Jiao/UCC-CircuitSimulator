@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>工坊电路模拟器</title>
+    <link rel="stylesheet" href="/UCC/CircuitSimulatorstyles.css">
+    <!-- 添加触摸图标库，为移动端提供更好的图标支持 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+    <div class="icon-sidebar">
+        <img src="PNG/开关触发器.png" draggable="true" class="sidebar-icon" data-icon="开关触发器">
+        <img src="PNG/与门（&）.png" draggable="true" class="sidebar-icon" data-icon="与门（&）">
+        <img src="PNG/或门（OR）.png" draggable="true" class="sidebar-icon" data-icon="或门（OR）">
+        <img src="PNG/非门（NOT）.png" draggable="true" class="sidebar-icon" data-icon="非门（NOT）">
+        <img src="PNG/分支（BR）.png" draggable="true" class="sidebar-icon" data-icon="分支（BR）">
+        <img src="PNG/延时触发器.png" draggable="true" class="sidebar-icon" data-icon="延时触发器">
+        <img src="PNG/XOR信号器.png" draggable="true" class="sidebar-icon" data-icon="XOR信号器">
+        <img src="PNG/标记储存装置.png" draggable="true" class="sidebar-icon" data-icon="标记储存装置">
+        <img src="PNG/灯.png" draggable="true" class="sidebar-icon" data-icon="灯">
+        <img src="PNG/跟随器.png" draggable="true" class="sidebar-icon" data-icon="跟随器">
+    </div>
+    <div class="grid-bg"></div>
+    <!-- 恢复工具栏结构，但隐藏按钮 -->
+    <div class="toolbar-glass" style="visibility: hidden; height: 0; overflow: hidden;">
+        <div class="toolbar-btns">
+            <button id="add-node"><span>＋</span> 节点</button>
+            <button id="add-branch"><span>⎯⎯⎯</span> 分支</button>
+            <button id="clear">清空</button>
+            <label class="color-label">
+                <input type="color" id="node-color" value="#5e60ce">
+                <span>颜色</span>
+            </label>
+        </div>
+    </div>
+    <div class="grid-container" id="grid-container">
+        <svg class="connection-svg" id="connection-svg"></svg>
+    </div>
+    
+    <!-- 移动端控制面板 -->
+    <div class="mobile-controls" id="mobile-controls">
+        <div class="mobile-control-btn" id="mobile-pan-btn">
+            <i class="fas fa-arrows-alt"></i>
+        </div>
+        <div class="mobile-control-btn" id="mobile-connect-btn">
+            <i class="fas fa-link"></i>
+        </div>
+        <div class="mobile-control-btn" id="mobile-delete-btn">
+            <i class="fas fa-trash"></i>
+        </div>
+        <div class="mobile-control-btn" id="mobile-reset-btn">
+            <i class="fas fa-redo-alt"></i>
+        </div>
+        <div class="mobile-control-btn" id="mobile-help-btn">
+            <i class="fas fa-question"></i>
+        </div>
+    </div>
+    
+    <!-- 加载主脚本 -->
+    <script src="script.js"></script>
+    <!-- 加载移动端专用脚本 -->
+    <script src="mobile.js"></script>
+</body>
+</html> 
